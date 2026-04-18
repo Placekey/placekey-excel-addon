@@ -30,8 +30,8 @@ export async function callPlacekeyApi(batch, options, requestFields, apiKey, { f
     if (code === 200) {
       try {
         return await res.json();
-      } catch (_e) {
-        throw new Error("The API returned an invalid response. Please try again.");
+      } catch (cause) {
+        throw new Error("The API returned an invalid response. Please try again.", { cause });
       }
     }
 
