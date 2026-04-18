@@ -18,6 +18,7 @@
     "rewrite-manifest": "node scripts/manifest-prod.js"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@vitest/coverage-v8": "^4.1.4",
     "eslint": "^10.2.1",
     "happy-dom": "^20.9.0",
