@@ -1,0 +1,43 @@
+name: Release
+on:
+  push:
+    # Only GA version tags (vMAJOR.MINOR.PATCH). Pre-release suffixes like
+    # v1.0.0-rc1 or build-metadata suffixes like v1.0.0+meta must NOT cut a
+    # release — the GA tag would collide. The job-level `if` below guards
+    # against `-` / `+` in case the glob matches something looser.
+    tags: ["v[0-9]*.[0-9]*.[0-9]*"]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    if: ${{ !contains(github.ref_name, '-') && !contains(github.ref_name, '+') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/setup-node@53b83947a5a98c8d113130e565377fae1a50d02f # v6.3.0
+        with:
+          node-version: 20
+          cache: "npm"
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm test
+      - run: npm run build
+      - name: Rewrite manifest URLs for production
+        env:
+          PLACEKEY_ADDIN_URL: ${{ vars.PLACEKEY_ADDIN_URL || 'https://placekey.github.io/placekey-excel-addon' }}
+        run: npm run rewrite-manifest
+      - name: Create GitHub Release with manifest.xml attached
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --title "$GITHUB_REF_NAME" \
+            --generate-notes \
+            dist/manifest.xml

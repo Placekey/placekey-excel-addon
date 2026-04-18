@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Placekey</title>
+    <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+    <link rel="stylesheet" href="./taskpane.css" />
+  </head>
+
+  <body>
+    <main>
+      <div id="stillWorking" class="center"><i class="spinner" aria-label="Loading"></i></div>
+
+      <div id="sheetPicker" class="sheet-picker hidden">
+        <label class="sheet-picker__label" id="labelsheets" for="sheets">Sheet</label>
+        <div class="sheet-picker__row">
+          <select id="sheets"></select>
+          <button id="refreshBtn" type="button" class="icon-btn" aria-label="Refresh sheet list" title="Refresh sheets">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <polyline points="23 4 23 10 17 10"></polyline>
+              <polyline points="1 20 1 14 7 14"></polyline>
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <div id="emptySheet" class="hidden empty">
+        <p><strong>This sheet looks empty.</strong><br />Start with a few sample addresses to see how it works.</p>
+        <button id="sampleBtn" type="button" class="btn-primary">Fill with sample data</button>
+      </div>
+
+      <div id="mapTitle" class="hidden">
+        <div class="section-head">
+          <span class="section-head__title">Map your columns</span>
+          <span class="status-chip status-chip--none" id="mappingStatus" role="status" aria-live="polite">
+            <span class="status-chip__dot" aria-hidden="true"></span>
+            <span id="mappingStatusText">Map columns to begin</span>
+          </span>
+        </div>
+
+        <div class="field" data-field="location_name">
+          <label for="location_name" class="field__label" title="Business or place name, e.g. Twin Peaks Petroleum">
+            <span class="field__dot" aria-hidden="true"></span> Location Name
+          </label>
+          <select id="location_name" class="selectCols"></select>
+        </div>
+
+        <div class="field" data-field="street_address">
+          <label for="street_address" class="field__label" title="Street address, e.g. 598 Portola Dr"> <span class="field__dot" aria-hidden="true"></span> Street Address </label>
+          <select id="street_address" class="selectCols"></select>
+        </div>
+
+        <div class="field" data-field="city">
+          <label for="city" class="field__label" title="City or town"> <span class="field__dot" aria-hidden="true"></span> City </label>
+          <select id="city" class="selectCols"></select>
+        </div>
+
+        <div class="field" data-field="region">
+          <label for="region" class="field__label" title="US state · Canadian province · UK county"> <span class="field__dot" aria-hidden="true"></span> Region </label>
+          <select id="region" class="selectCols"></select>
+        </div>
+
+        <div class="field" data-field="postal_code">
+          <label for="postal_code" class="field__label" title="US: 94131 · Canada: M5V 3A8 · UK: SW1A 1AA"> <span class="field__dot" aria-hidden="true"></span> Postal Code </label>
+          <select id="postal_code" class="selectCols"></select>
+        </div>
+
+        <div class="field" data-field="latitude">
+          <label for="latitude" class="field__label" title="Latitude in decimal degrees"> <span class="field__dot" aria-hidden="true"></span> Latitude </label>
+          <select id="latitude" class="selectCols"></select>
+        </div>
+
+        <div class="field" data-field="longitude">
+          <label for="longitude" class="field__label" title="Longitude in decimal degrees"> <span class="field__dot" aria-hidden="true"></span> Longitude </label>
+          <select id="longitude" class="selectCols"></select>
+        </div>
+
+        <div class="field" data-field="iso_country_code">
+          <label for="iso_country_code" class="field__label" title="ISO 3166-1 alpha-2 code: US, CA, GB"> <span class="field__dot" aria-hidden="true"></span> Country </label>
+          <select id="iso_country_code" class="selectCols"></select>
+        </div>
+
+        <details class="disclosure" id="disclosure-returns" open>
+          <summary class="disclosure__summary">
+            <span>Return fields</span>
+            <span class="disclosure__badge" id="returnCount">0</span>
+          </summary>
+          <div class="disclosure__content">
+            <p class="disclosure__note">
+              Which <a href="https://docs.placekey.io/documentation/placekey-api/response/optional-responses" target="_blank" rel="noopener">optional fields</a> would you like
+              returned?
+            </p>
+            <fieldset class="checks">
+              <label class="check check--locked" title="Placekey is always returned">
+                <input type="checkbox" checked disabled aria-label="Placekey is always returned" />
+                <span>Placekey</span>
+                <span class="check__hint">always</span>
+              </label>
+              <label class="check"> <input type="checkbox" name="confidence_score" class="returnFields" checked /> <span>Confidence Level</span> </label>
+              <label class="check"> <input type="checkbox" name="address_placekey" class="returnFields" /> <span>Address Placekey</span> </label>
+              <label class="check"> <input type="checkbox" name="building_placekey" class="returnFields" /> <span>Building Placekey</span> </label>
+              <label class="check"> <input type="checkbox" name="gers" class="returnFields" /> <span>GERS</span> </label>
+              <label class="check"> <input type="checkbox" name="geocode" class="returnFields" /> <span>Geocode</span> </label>
+              <label class="check"> <input type="checkbox" name="geoid" class="returnFields" /> <span>GeoId</span> </label>
+              <label class="check"> <input type="checkbox" name="upi" class="returnFields" /> <span>UPI</span> </label>
+            </fieldset>
+          </div>
+        </details>
+
+        <label class="check" style="margin-top: 16px"> <input type="checkbox" id="insertError" name="insertError" /> <span>Add error column for invalid rows</span> </label>
+
+        <button id="generate" type="button" class="btn-primary mt-10" aria-disabled="true">Generate</button>
+      </div>
+
+      <div id="generateToast" class="toast" role="status" aria-live="polite"></div>
+
+      <footer class="app-footer">
+        <a id="docs" href="https://docs.placekey.io/" target="_blank" rel="noopener">View API Docs</a>
+        <button id="changeKey" type="button" class="btn-text">Change API Key</button>
+      </footer>
+      <div class="brand">
+        <a href="https://www.placekey.io/" target="_blank" rel="noopener" aria-label="Placekey website">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 81 23" width="70" height="20">
+            <path d="M78.5 23h-76C1.1 23 0 21.9 0 20.5v-18C0 1.1 1.1 0 2.5 0h76C79.9 0 81 1.1 81 2.5v18c0 1.4-1.1 2.5-2.5 2.5z" />
+          </svg>
+        </a>
+      </div>
+    </main>
+
+    <script type="module" src="./taskpane.js"></script>
+  </body>
+</html>

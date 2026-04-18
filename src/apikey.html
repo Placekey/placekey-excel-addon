@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Placekey API Key</title>
+    <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+    <link rel="stylesheet" href="./taskpane.css" />
+  </head>
+  <body>
+    <div class="apikey-dialog">
+      <h2 style="font-size: 16px; font-weight: 600">Enter your API Key</h2>
+
+      <div class="form__group">
+        <label for="key">API Key</label>
+        <input id="key" type="password" placeholder="Enter your API key" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off" />
+      </div>
+
+      <div class="footer">
+        <a href="https://placekey.io/faq" target="_blank" rel="noopener">FAQ</a>
+        <a class="btn" href="https://dev.placekey.io/" target="_blank" rel="noopener">Get a Free API Key</a>
+        <button id="finishSetup" class="btn-solid">Finish Setup</button>
+      </div>
+
+      <div id="error" style="display: none; color: #d93025; margin-top: 12px"></div>
+    </div>
+
+    <script type="module" src="./apikey.js"></script>
+  </body>
+</html>
