@@ -1,0 +1,11 @@
+# dashboard.placekey.io blocks automated / bot traffic (valid in-browser).
+^https://dashboard\.placekey\.io/?$
+
+# GitHub Pages URL is 404 until the first release tag fires publish.yml.
+# Remove this line once the Pages site is live.
+^https://placekey\.github\.io/placekey-excel-addon/?$
+
+# docs/install.html links to ./manifest.xml — published alongside index.html by
+# publish.yml (copies dist/manifest.xml into the Pages artifact). The file does
+# not exist in the source tree, so skip the local-file resolution.
+^file://.*/docs/manifest\.xml$
