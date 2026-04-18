@@ -20,6 +20,9 @@ export default [
         OfficeRuntime: "readonly",
         Excel: "readonly",
         URL: "readonly",
+        globalThis: "readonly",
+        KeyboardEvent: "readonly",
+        MouseEvent: "readonly",
       },
     },
     rules: {

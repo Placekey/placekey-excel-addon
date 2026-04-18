@@ -7,6 +7,7 @@ import { callPlacekeyApi } from "./logic/api-client.js";
 import { collectOverwriteHeaders, computeStatus, duplicateColumns, resolveFieldValue } from "./logic/ui-state.js";
 import { activateSheet, getWorkbookState, insertSampleData, readDataRows, saveSheetMapping, writeHeaders, writeResults } from "./sheet-adapter.js";
 import { getApiKey, getLearnedAliases, getUserPrefs, saveLearnedAliases, saveUserPrefs } from "./prefs-storage.js";
+import { showConfirm } from "./logic/modal.js";
 
 const state = {
   headers: [],
@@ -359,7 +360,20 @@ async function handleGenerate() {
     if (overwrites.length > 0) {
       const list = overwrites.join(", ");
       const msg = `This will overwrite existing column${overwrites.length > 1 ? "s" : ""}: ${list}\n\nContinue?`;
-      if (!window.confirm(msg)) {
+      let ok = false;
+      try {
+        ok = await showConfirm({
+          title: "Overwrite existing columns?",
+          message: msg,
+          confirmLabel: "Overwrite",
+          cancelLabel: "Cancel",
+          destructive: true,
+        });
+      } catch (_e) {
+        setToast("A dialog is already open.", "error");
+        return;
+      }
+      if (!ok) {
         setToast("Cancelled.");
         return;
       }
