@@ -1,7 +1,7 @@
 # Placekey Excel Add-in
 
 [![CI](https://github.com/Placekey/placekey-excel-addon/actions/workflows/ci.yml/badge.svg)](https://github.com/Placekey/placekey-excel-addon/actions/workflows/ci.yml)
-[![CodeQL](https://github.com/Placekey/placekey-excel-addon/actions/workflows/codeql.yml/badge.svg)](https://github.com/Placekey/placekey-excel-addon/actions/workflows/codeql.yml)
+[![Link Check](https://github.com/Placekey/placekey-excel-addon/actions/workflows/links.yml/badge.svg)](https://github.com/Placekey/placekey-excel-addon/actions/workflows/links.yml)
 [![Publish](https://github.com/Placekey/placekey-excel-addon/actions/workflows/publish.yml/badge.svg)](https://github.com/Placekey/placekey-excel-addon/actions/workflows/publish.yml)
 
 Install page: <https://placekey.github.io/placekey-excel-addon/>
@@ -18,7 +18,7 @@ See [`docs/install.html`](./docs/install.html) for the user-facing installer, or
 
 1. Download `manifest.xml` from the [latest release](https://github.com/Placekey/placekey-excel-addon/releases) (or the hosted copy on GitHub Pages).
 2. Open any Excel workbook at https://office.com.
-3. In the ribbon: **Insert → Add-ins → Upload My Add-in**.
+3. On the **Home** tab of the ribbon, click **Add-ins** → **More Add-ins** → **MY ADD-INS** tab → **Upload My Add-in**.
 4. Click **Browse**, select the downloaded `manifest.xml`, then **Upload**.
 5. The **Placekey** button appears on the **Home** ribbon. Click it, enter your API key, map columns, click **Generate**.
 
@@ -27,9 +27,14 @@ See [`docs/install.html`](./docs/install.html) for the user-facing installer, or
 ```bash
 mkdir -p ~/Library/Containers/com.microsoft.Excel/Data/Documents/wef
 mv ~/Downloads/manifest.xml ~/Library/Containers/com.microsoft.Excel/Data/Documents/wef/
+# macOS Gatekeeper stamps downloaded files with com.apple.quarantine,
+# which silently blocks Excel from loading the manifest. Strip it:
+xattr -d com.apple.quarantine ~/Library/Containers/com.microsoft.Excel/Data/Documents/wef/manifest.xml
 ```
 
-Restart Excel. Then: **Insert → Add-ins → My Add-ins → Placekey**.
+Fully quit Excel (⌘Q — closing the window is not enough; a background process caches the `wef` folder state), then relaunch. The **Placekey** button appears directly on the **Home** ribbon.
+
+If it doesn't appear, open **Home → Add-ins** and look under **MY ADD-INS** — it registers under the **Shared Folder / Developer Add-ins** section.
 
 ## Usage
 
@@ -55,7 +60,7 @@ Requires Node.js 20+.
 
 ```bash
 npm install                # install deps
-npm test                   # run Vitest suite (189 tests)
+npm test                   # run Vitest suite (226 tests)
 npm run lint               # ESLint
 npm run format:check       # Prettier
 npm run build              # Vite production build
@@ -68,7 +73,7 @@ npm run validate-manifest  # validate manifest.xml
 npm run dev
 ```
 
-Serves the taskpane from `https://localhost:3000`. The included `manifest.xml` points at localhost for sideloading during development. Use your platform's sideload method (Excel for Mac: drop `manifest.xml` into the `wef` folder; Excel for Web: Insert → Add-ins → Upload My Add-in).
+Serves the taskpane from `https://localhost:3000`. The included `manifest.xml` points at localhost for sideloading during development. Use your platform's sideload method (Excel for Mac: drop `manifest.xml` into the `wef` folder, then strip `com.apple.quarantine` if Gatekeeper stamped it; Excel for Web: Home → Add-ins → More Add-ins → MY ADD-INS → Upload My Add-in).
 
 For production, `scripts/manifest-prod.js` rewrites the dev URLs to the GitHub Pages deploy URL (set `PLACEKEY_ADDIN_URL` env var to override).
 

@@ -13,8 +13,15 @@
         color: #202124;
         line-height: 1.5;
       }
-      h1 { margin-top: 0; }
-      nav.tabs { display: flex; gap: 4px; border-bottom: 1px solid #dadce0; margin-top: 24px; }
+      h1 {
+        margin-top: 0;
+      }
+      nav.tabs {
+        display: flex;
+        gap: 4px;
+        border-bottom: 1px solid #dadce0;
+        margin-top: 24px;
+      }
       nav.tabs button {
         background: transparent;
         border: 0;
@@ -28,10 +35,19 @@
         color: #1a73e8;
         border-bottom-color: #1a73e8;
       }
-      .panel { display: none; padding-top: 20px; }
-      .panel.active { display: block; }
-      ol { padding-left: 22px; }
-      li { margin-bottom: 10px; }
+      .panel {
+        display: none;
+        padding-top: 20px;
+      }
+      .panel.active {
+        display: block;
+      }
+      ol {
+        padding-left: 22px;
+      }
+      li {
+        margin-bottom: 10px;
+      }
       pre {
         background: #f8f9fa;
         padding: 12px 14px;
@@ -48,8 +64,14 @@
         border-radius: 4px;
         font-weight: 500;
       }
-      .cta:hover { background: #1765cc; }
-      footer { margin-top: 40px; font-size: 12px; color: #5f6368; }
+      .cta:hover {
+        background: #1765cc;
+      }
+      footer {
+        margin-top: 40px;
+        font-size: 12px;
+        color: #5f6368;
+      }
       code {
         background: #f8f9fa;
         padding: 2px 5px;
@@ -60,7 +82,10 @@
   </head>
   <body>
     <h1>Install Placekey for Excel</h1>
-    <p>The Placekey Excel Add-in adds a sidebar to Excel that generates Placekey identifiers for rows of addresses. It runs entirely in your browser — no server, no data leaves your machine except the address values sent to the Placekey API.</p>
+    <p>
+      The Placekey Excel Add-in adds a sidebar to Excel that generates Placekey identifiers for rows of addresses. It runs entirely in your browser — no server, no data leaves your
+      machine except the address values sent to the Placekey API.
+    </p>
 
     <p><a class="cta" href="./manifest.xml" download>Download manifest.xml</a></p>
 
@@ -74,7 +99,10 @@
       <ol>
         <li>Click the <strong>Download manifest.xml</strong> button above.</li>
         <li>Open any Excel workbook at <a href="https://office.com" target="_blank" rel="noopener">office.com</a>.</li>
-        <li>In the ribbon: <strong>Insert → Add-ins → Upload My Add-in</strong>.</li>
+        <li>
+          On the <strong>Home</strong> tab of the ribbon, click <strong>Add-ins</strong> → <strong>More Add-ins</strong> → the <strong>MY ADD-INS</strong> tab →
+          <strong>Upload My Add-in</strong>.
+        </li>
         <li>Click <strong>Browse</strong>, select the downloaded <code>manifest.xml</code>, then <strong>Upload</strong>.</li>
         <li>The <strong>Placekey</strong> button now appears on the <strong>Home</strong> ribbon. Click it.</li>
         <li>Enter your <a href="https://dev.placekey.io/" target="_blank" rel="noopener">API key</a>, map columns, click <strong>Generate</strong>.</li>
@@ -85,24 +113,52 @@
       <h2>Install on Excel for Mac</h2>
       <ol>
         <li>Click the <strong>Download manifest.xml</strong> button above.</li>
-        <li>Open <strong>Terminal</strong> and paste:<pre>mkdir -p ~/Library/Containers/com.microsoft.Excel/Data/Documents/wef
-mv ~/Downloads/manifest.xml ~/Library/Containers/com.microsoft.Excel/Data/Documents/wef/</pre></li>
-        <li>Restart Excel.</li>
-        <li>Go to <strong>Insert → Add-ins → My Add-ins</strong>. Under <em>Developer Add-ins</em> you should see <strong>Placekey</strong>.</li>
+        <li>
+          Open <strong>Terminal</strong> and paste:
+          <pre>
+mkdir -p ~/Library/Containers/com.microsoft.Excel/Data/Documents/wef
+mv ~/Downloads/manifest.xml ~/Library/Containers/com.microsoft.Excel/Data/Documents/wef/
+xattr -d com.apple.quarantine ~/Library/Containers/com.microsoft.Excel/Data/Documents/wef/manifest.xml</pre
+          >
+          <em
+            >The <code>xattr</code> line strips macOS Gatekeeper's quarantine flag. Browsers stamp every downloaded file with it, and Excel silently ignores quarantined manifests —
+            this is the single most common reason the add-in doesn't show up.</em
+          >
+        </li>
+        <li>
+          Fully quit Excel with <strong>⌘Q</strong>. Closing the workbook window is <em>not</em> enough — a background Excel process caches the <code>wef</code> folder. Then
+          relaunch Excel.
+        </li>
+        <li>Open any workbook. The <strong>Placekey</strong> button appears directly on the <strong>Home</strong> ribbon.</li>
         <li>Click it, enter your API key, map columns, click <strong>Generate</strong>.</li>
       </ol>
-      <p>Mac desktop Excel uses a hidden <code>wef</code> folder for sideloaded add-ins. If the Placekey button doesn't appear after restart, make sure the folder exists exactly as above and that the manifest.xml is inside it.</p>
+      <p>
+        If the button doesn't appear: open <strong>Home → Add-ins</strong> and look under <strong>MY ADD-INS</strong> for a <em>Shared Folder</em> or <em>Developer Add-ins</em>
+        section. That's also the place to manually enable it if it was installed but not active.
+      </p>
     </section>
 
     <h2>Troubleshooting</h2>
     <ul>
-      <li><strong>Add-in doesn't appear</strong> — close and reopen Excel; on Web, reload the browser tab.</li>
+      <li>
+        <strong>Mac: add-in doesn't appear after sideload</strong> — 99% of the time this is the quarantine flag. Run
+        <code>xattr -l ~/Library/Containers/com.microsoft.Excel/Data/Documents/wef/manifest.xml</code>; if you see <code>com.apple.quarantine</code>, remove it with
+        <code>xattr -d com.apple.quarantine &lt;path&gt;</code> and fully quit Excel with ⌘Q before relaunching.
+      </li>
+      <li><strong>Add-in doesn't appear (Web)</strong> — reload the browser tab; if still missing, re-upload the manifest through Home → Add-ins → More Add-ins → MY ADD-INS.</li>
       <li><strong>"This add-in is not trusted"</strong> — sideloaded add-ins show this on first load; click <em>Trust it</em>.</li>
-      <li><strong>Updating to a new version</strong> — download the latest <code>manifest.xml</code> and re-upload. Code updates (JS/HTML) don't require re-sideload — they're fetched from GitHub Pages on each load.</li>
+      <li>
+        <strong>Updating to a new version</strong> — download the latest <code>manifest.xml</code> and re-upload (Web) or re-copy into <code>wef</code> and strip quarantine (Mac).
+        Code updates (JS/HTML) don't require re-sideload — they're fetched from GitHub Pages on each load.
+      </li>
     </ul>
 
     <footer>
-      <p><a href="https://github.com/Placekey/placekey-excel-addon" target="_blank" rel="noopener">Source on GitHub</a> · <a href="https://docs.placekey.io/" target="_blank" rel="noopener">API docs</a> · <a href="https://www.placekey.io/privacy-policy" target="_blank" rel="noopener">Privacy policy</a></p>
+      <p>
+        <a href="https://github.com/Placekey/placekey-excel-addon" target="_blank" rel="noopener">Source on GitHub</a> ·
+        <a href="https://docs.placekey.io/" target="_blank" rel="noopener">API docs</a> ·
+        <a href="https://www.placekey.io/privacy-policy" target="_blank" rel="noopener">Privacy policy</a>
+      </p>
     </footer>
 
     <script>
