@@ -501,6 +501,7 @@ input[type="password"]:focus-visible {
 }
 .brand svg {
   opacity: 0.85;
+  color: var(--pk-text-muted);
 }
 
 .apikey-dialog {
