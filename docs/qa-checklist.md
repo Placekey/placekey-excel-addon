@@ -8,18 +8,21 @@ Do not use real PII. Use the built-in sample data or synthetic fixtures only.
 ### Excel on the Web
 
 - [ ] Open any workbook at <https://office.com>.
-- [ ] Home tab → Add-ins → More Settings → My Add-ins → Upload My Add-in.
+- [ ] Home tab → **Add-ins** → **More Add-ins** → **MY ADD-INS** tab → **Upload My Add-in**.
 - [ ] Choose `manifest.xml` from the repo root (built or dev copy).
-- [ ] Confirm "Placekey" group appears on the Home ribbon.
+- [ ] Confirm "Placekey" button appears on the Home ribbon.
 - [ ] Click the Placekey ribbon button → taskpane loads without console errors.
 
 ### Excel for Mac
 
-- [ ] Quit Excel fully.
+Verified on Excel for Mac **16.108.1**. The "Tools → Excel Add-ins" menu is for legacy `.xlam`/COM add-ins only — Office.js taskpane add-ins do **not** appear there.
+
 - [ ] Copy `manifest.xml` to `~/Library/Containers/com.microsoft.Excel/Data/Documents/wef/` (create `wef/` if missing).
-- [ ] Launch Excel, open any workbook.
-- [ ] Insert tab → My Add-ins → Developer Add-ins → select "Placekey".
-- [ ] Confirm "Placekey" group appears on the Home ribbon.
+- [ ] **Strip quarantine** if the file came from a browser download: `xattr -d com.apple.quarantine ~/Library/Containers/com.microsoft.Excel/Data/Documents/wef/manifest.xml`. Gatekeeper-quarantined manifests are silently ignored by Excel.
+- [ ] **Fully quit Excel with ⌘Q** (not just close the window — a background process caches the `wef` folder).
+- [ ] Relaunch Excel and open any workbook.
+- [ ] Confirm "Placekey" button appears directly on the Home ribbon.
+- [ ] If it doesn't: Home tab → **Add-ins** → **My Add-ins** → look under **Shared Folder** / **Developer Add-ins** for Placekey.
 - [ ] Click the Placekey ribbon button → taskpane loads without console errors.
 
 ### Test API key
@@ -107,9 +110,10 @@ Do not use real PII. Use the built-in sample data or synthetic fixtures only.
 
 - [ ] `window.confirm` overwrite dialog renders natively (not clipped by taskpane edge).
 - [ ] Frozen header row survives after insert → scroll down, row 1 stays pinned.
-- [ ] Ribbon button visible on Home tab under "Placekey" group.
+- [ ] Ribbon button visible on **Home** tab (not Insert — the Insert tab on Mac Excel 16.108+ no longer has an Add-ins entry point).
 - [ ] Taskpane resize works; controls do not overflow.
 - [ ] API key dialog (`displayDialogAsync`) opens as a separate window, not inline.
+- [ ] Toggle macOS system appearance to Dark (System Settings → Appearance → Dark) → taskpane text remains readable, no hard-coded light-mode colors.
 
 ### Both platforms
 
