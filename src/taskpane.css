@@ -12,7 +12,8 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
   font-size: 13px;
   line-height: 1.5;
-  color: #202124;
+  color: var(--pk-text);
+  background-color: var(--pk-bg);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -22,7 +23,7 @@ button {
   cursor: pointer;
 }
 a {
-  color: #1a73e8;
+  color: var(--pk-primary);
   text-decoration: none;
 }
 a:hover {
@@ -55,15 +56,59 @@ svg {
   --pk-primary-hover: #1765cc;
   --pk-primary-soft: rgba(26, 115, 232, 0.08);
   --pk-primary-ring: rgba(26, 115, 232, 0.3);
+  --pk-primary-on: #ffffff;
   --pk-success: #1e8e3e;
   --pk-success-soft: #e6f4ea;
   --pk-warning: #b06000;
   --pk-warning-dot: #f9ab00;
   --pk-warning-soft: #fef7e0;
   --pk-danger: #d93025;
+  --pk-danger-hover: #a52714;
   --pk-danger-soft: #fce8e6;
+  --pk-disabled-bg: #e8eaed;
+  --pk-disabled-text: #9aa0a6;
+  --pk-overlay: rgba(32, 33, 36, 0.45);
+  --pk-shadow-soft: rgba(60, 64, 67, 0.08);
+  --pk-shadow-1: rgba(60, 64, 67, 0.3);
+  --pk-shadow-2: rgba(60, 64, 67, 0.15);
+  --pk-select-arrow: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='%235f6368' d='M0 0l5 6 5-6z'/></svg>");
   --pk-radius: 8px;
   --pk-radius-sm: 4px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* Excel dark chrome sits near #1f1f1f; keep base warm-neutral, not pure black. */
+    --pk-bg: #202124;
+    --pk-surface: #2a2b2e;
+    --pk-border: #3c4043;
+    --pk-border-strong: #9aa0a6;
+    --pk-text: #e8eaed;
+    --pk-text-muted: #9aa0a6;
+    --pk-text-subtle: #80868b;
+    /* Material-style dark-mode blue; lighter for contrast on dark bg. */
+    --pk-primary: #8ab4f8;
+    --pk-primary-hover: #aecbfa;
+    --pk-primary-soft: rgba(138, 180, 248, 0.14);
+    --pk-primary-ring: rgba(138, 180, 248, 0.4);
+    --pk-primary-on: #202124;
+    --pk-success: #81c995;
+    --pk-success-soft: rgba(129, 201, 149, 0.14);
+    --pk-warning: #fdd663;
+    --pk-warning-dot: #fdd663;
+    --pk-warning-soft: rgba(253, 214, 99, 0.14);
+    --pk-danger: #f28b82;
+    --pk-danger-hover: #f6aea9;
+    --pk-danger-soft: rgba(242, 139, 130, 0.14);
+    --pk-disabled-bg: #3c4043;
+    --pk-disabled-text: #5f6368;
+    --pk-overlay: rgba(0, 0, 0, 0.6);
+    --pk-shadow-soft: rgba(0, 0, 0, 0.3);
+    --pk-shadow-1: rgba(0, 0, 0, 0.5);
+    --pk-shadow-2: rgba(0, 0, 0, 0.35);
+    /* Re-encoded arrow with muted-foreground fill (#9aa0a6). */
+    --pk-select-arrow: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='%239aa0a6' d='M0 0l5 6 5-6z'/></svg>");
+  }
 }
 
 main {
@@ -142,7 +187,7 @@ select {
   border: 1px solid var(--pk-border);
   border-radius: var(--pk-radius-sm);
   appearance: none;
-  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='%235f6368' d='M0 0l5 6 5-6z'/></svg>");
+  background-image: var(--pk-select-arrow);
   background-position: right 10px center;
   background-repeat: no-repeat;
   cursor: pointer;
@@ -350,7 +395,7 @@ input[type="password"]:focus-visible {
   height: 36px;
   padding: 0 16px;
   background: var(--pk-primary);
-  color: #fff;
+  color: var(--pk-primary-on);
   border: 0;
   border-radius: var(--pk-radius-sm);
   font-size: 14px;
@@ -361,7 +406,7 @@ input[type="password"]:focus-visible {
 }
 .btn-primary:hover:not([aria-disabled="true"]):not(:disabled) {
   background: var(--pk-primary-hover);
-  box-shadow: 0 1px 2px rgba(60, 64, 67, 0.08);
+  box-shadow: 0 1px 2px var(--pk-shadow-soft);
 }
 .btn-primary:focus-visible {
   outline: 2px solid var(--pk-primary);
@@ -369,8 +414,8 @@ input[type="password"]:focus-visible {
 }
 .btn-primary[aria-disabled="true"],
 .btn-primary:disabled {
-  background: #e8eaed;
-  color: #9aa0a6;
+  background: var(--pk-disabled-bg);
+  color: var(--pk-disabled-text);
   cursor: not-allowed;
   box-shadow: none;
 }
@@ -485,7 +530,7 @@ input[type="password"]:focus-visible {
   height: 36px;
   padding: 0 16px;
   background: var(--pk-primary);
-  color: #fff;
+  color: var(--pk-primary-on);
   border: 0;
   border-radius: var(--pk-radius-sm);
   font-size: 14px;
@@ -522,7 +567,7 @@ input[type="password"]:focus-visible {
 .modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(32, 33, 36, 0.45);
+  background: var(--pk-overlay);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -530,11 +575,12 @@ input[type="password"]:focus-visible {
   padding: 16px;
 }
 .modal {
-  background: var(--pk-bg);
+  background: var(--pk-surface);
+  border: 1px solid var(--pk-border);
   border-radius: var(--pk-radius);
   box-shadow:
-    0 1px 2px rgba(60, 64, 67, 0.3),
-    0 2px 6px 2px rgba(60, 64, 67, 0.15);
+    0 1px 2px var(--pk-shadow-1),
+    0 2px 6px 2px var(--pk-shadow-2);
   padding: 16px;
   max-width: 360px;
   width: 100%;
@@ -577,7 +623,7 @@ input[type="password"]:focus-visible {
 }
 .modal .btn-primary {
   background: var(--pk-primary);
-  color: #fff;
+  color: var(--pk-primary-on);
   border-color: var(--pk-primary);
 }
 .modal .btn-primary:hover {
@@ -586,12 +632,12 @@ input[type="password"]:focus-visible {
 }
 .modal .btn-danger {
   background: var(--pk-danger);
-  color: #fff;
+  color: var(--pk-primary-on);
   border-color: var(--pk-danger);
 }
 .modal .btn-danger:hover {
-  background: #a52714;
-  border-color: #a52714;
+  background: var(--pk-danger-hover);
+  border-color: var(--pk-danger-hover);
 }
 .modal .btn:focus-visible {
   outline: 2px solid var(--pk-primary);
