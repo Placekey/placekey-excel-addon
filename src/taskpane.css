@@ -494,10 +494,21 @@ input[type="password"]:focus-visible {
   border-top: 1px solid var(--pk-border);
 }
 
+.build-info {
+  margin-top: 12px;
+  text-align: center;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  color: var(--pk-text-subtle);
+  letter-spacing: 0.02em;
+  user-select: text;
+  cursor: default;
+}
+
 .brand {
   display: flex;
   justify-content: center;
-  margin-top: 12px;
+  margin-top: 4px;
 }
 .brand svg {
   opacity: 0.85;
