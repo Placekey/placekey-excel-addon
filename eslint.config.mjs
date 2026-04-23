@@ -23,6 +23,10 @@ export default [
         globalThis: "readonly",
         KeyboardEvent: "readonly",
         MouseEvent: "readonly",
+        // Vite-injected build metadata (see vite.config.js `define`).
+        __APP_VERSION__: "readonly",
+        __APP_COMMIT__: "readonly",
+        __APP_BUILD_DATE__: "readonly",
       },
     },
     rules: {

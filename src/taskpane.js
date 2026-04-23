@@ -465,7 +465,15 @@ async function handleGenerate() {
   }
 }
 
+function renderBuildInfo() {
+  const el = document.getElementById("buildInfo");
+  if (!el) return;
+  el.textContent = `v${__APP_VERSION__} (${__APP_COMMIT__})`;
+  el.title = `Built ${__APP_BUILD_DATE__} from commit ${__APP_COMMIT__}`;
+}
+
 Office.onReady(async (info) => {
+  renderBuildInfo();
   if (info.host !== Office.HostType.Excel) {
     document.body.innerHTML = "<p style='padding:12px'>This add-in only runs in Excel.</p>";
     return;
