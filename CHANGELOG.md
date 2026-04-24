@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Changed
+
+- Removed the hard-coded 1.1 s client-side pause between Placekey API batches (`RATE_LIMIT_MS`). Generation now dispatches the next batch as soon as the previous response arrives. For a large sheet this eliminates ~1 s of forced wait per 100 rows (e.g. ~110 s saved on 10 000 valid rows).
+- `callPlacekeyApi` now treats HTTP 429 as retryable instead of throwing immediately. On 429 it honors the server's `Retry-After` header (seconds or HTTP date), or falls back to `RETRY_AFTER_DEFAULT_MS` (2 s) when the header is absent, and retries up to `MAX_RETRIES` times before surfacing a rate-limit error.
+
 ### Security
 
 - Add an npm `overrides` entry pinning `uuid` to `^14.0.0` to resolve [GHSA-w5hq-g745-h8pq](https://github.com/advisories/GHSA-w5hq-g745-h8pq) (missing buffer bounds check in uuid `v3`/`v5`/`v6`, fixed in 14.0.0). Reached us transitively through the `office-addin-manifest` dev dependency; not shipped to end users, but `npm audit` now reports zero vulnerabilities and Dependabot no longer errors out with "no patched version available".

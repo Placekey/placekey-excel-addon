@@ -1,4 +1,4 @@
-import { API_BATCH_SIZE, ERROR_KEY, GEOCODE_FIELDS, NO_INPUT_STRING, RATE_LIMIT_MS } from "./logic/constants.js";
+import { API_BATCH_SIZE, ERROR_KEY, GEOCODE_FIELDS, NO_INPUT_STRING } from "./logic/constants.js";
 import { computeAutomap } from "./logic/automap.js";
 import { buildColumnOptions, buildSheetOptions } from "./logic/html-helpers.js";
 import { hasDuplicateMappings, validateAllRows } from "./logic/validation.js";
@@ -405,7 +405,6 @@ async function handleGenerate() {
       const processed = Math.min((i + 1) * API_BATCH_SIZE, sortedValidIndexes.length);
       setToast(`Fetching Placekeys for ${processed}/${sortedValidIndexes.length} valid rows...`);
 
-      const timeHitApi = Date.now();
       const json = await callPlacekeyApi(batchRows, apiOptions, requestFields, apiKey);
       if (!json || !json.length) continue;
 
@@ -438,11 +437,6 @@ async function handleGenerate() {
       }
 
       totalPlaceKeys += indexes.length;
-
-      const elapsed = Date.now() - timeHitApi;
-      if (elapsed < RATE_LIMIT_MS && i < batches.length - 1) {
-        await new Promise((r) => setTimeout(r, RATE_LIMIT_MS - elapsed));
-      }
     }
 
     if (!fieldsFinalized && insertError && fields[ERROR_KEY]) {
