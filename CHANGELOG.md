@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## 1.0.1 — 2026-04-24
+
 ### Added
 
 - Taskpane dark mode: respects `prefers-color-scheme: dark` via a dark palette token set (#5).
