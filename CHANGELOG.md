@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## 1.1.0 — 2026-04-24
+
 ### Changed
 
 - **Pipeline the Generate flow**. Previously the add-in read every row of the sheet into memory, validated them all, built every batch, and only then started calling the Placekey API. On a 500k-row workbook in Excel for the Web that meant ~12 minutes of blank staring before any Placekeys appeared. The flow is now streamed: a new `streamDataRows` async-generator in `sheet-adapter.js` yields `READ_CHUNK_ROWS` (100) rows at a time, and `taskpane.js` validates each chunk as it arrives, fills `API_BATCH_SIZE` (100) batches, and dispatches them to the Placekey API immediately. The next chunk's Office.js read is kicked off before awaiting the API response, so the Excel-read channel and the Placekey HTTPS channel run in parallel. First Placekeys land in the sheet within seconds of clicking Generate regardless of total sheet size.
