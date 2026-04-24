@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Security
+
+- Add an npm `overrides` entry pinning `uuid` to `^14.0.0` to resolve [GHSA-w5hq-g745-h8pq](https://github.com/advisories/GHSA-w5hq-g745-h8pq) (missing buffer bounds check in uuid `v3`/`v5`/`v6`, fixed in 14.0.0). Reached us transitively through the `office-addin-manifest` dev dependency; not shipped to end users, but `npm audit` now reports zero vulnerabilities and Dependabot no longer errors out with "no patched version available".
+
 ## 1.0.2 — 2026-04-24
 
 ### Fixed
