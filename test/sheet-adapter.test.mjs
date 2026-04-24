@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { createExcelMock, installExcelGlobal } from "./helpers/excel-mock.js";
-import { activateSheet, getWorkbookState, insertSampleData, readDataRows, saveSheetMapping, writeHeaders, writeResults } from "../src/sheet-adapter.js";
+import { activateSheet, autofitResultColumns, getWorkbookState, insertSampleData, readDataRows, saveSheetMapping, writeHeaders, writeResults } from "../src/sheet-adapter.js";
 import { SHEET_MAPPING_KEY_PREFIX } from "../src/logic/constants.js";
 
 let cleanup = null;
@@ -220,6 +220,16 @@ describe("writeResults", () => {
     expect(sheet._cellAt(3, 3)).toBe("");
   });
 
+  it("skips autofit when { autofit: false } is passed (streaming writes)", async () => {
+    const mock = install(buildSpec());
+    const fields = { placekey: { displayName: "Placekey", columnIndex: 3 } };
+    const results = { placekey: { 0: "pk_a" } };
+    await writeResults(fields, results, { name: "Sheet1", id: "sheet-1-id" }, { autofit: false });
+    const sheet = mock.getSheetById("sheet-1-id");
+    expect(sheet._cellAt(1, 3)).toBe("pk_a");
+    expect(sheet._autofitCalls).toHaveLength(0);
+  });
+
   it("skips fields with no results", async () => {
     const mock = install(buildSpec());
     const fields = {
@@ -230,6 +240,24 @@ describe("writeResults", () => {
     await writeResults(fields, results, { name: "Sheet1", id: "sheet-1-id" });
     const sheet = mock.getSheetById("sheet-1-id");
     expect(sheet._cellAt(1, 3)).toBe("pk");
+    expect(sheet._cellAt(1, 4)).toBe("");
+  });
+});
+
+describe("autofitResultColumns", () => {
+  it("autofits each field's header column without writing values", async () => {
+    const mock = install(buildSpec());
+    const fields = {
+      placekey: { displayName: "Placekey", columnIndex: 3 },
+      confidence_score: { displayName: "Confidence", columnIndex: 4 },
+    };
+    await autofitResultColumns(fields, { name: "Sheet1", id: "sheet-1-id" });
+    const sheet = mock.getSheetById("sheet-1-id");
+    expect(sheet._autofitCalls).toHaveLength(2);
+    const columns = sheet._autofitCalls.map((c) => c.columnIndex).sort();
+    expect(columns).toEqual([3, 4]);
+    // No values written — the function only touches formatting.
+    expect(sheet._cellAt(1, 3)).toBe("");
     expect(sheet._cellAt(1, 4)).toBe("");
   });
 });

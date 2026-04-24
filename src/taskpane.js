@@ -5,7 +5,7 @@ import { hasDuplicateMappings, validateAllRows } from "./logic/validation.js";
 import { prepareOutputFields, transformColumnMappings } from "./logic/transform.js";
 import { callPlacekeyApi } from "./logic/api-client.js";
 import { collectOverwriteHeaders, computeStatus, duplicateColumns, resolveFieldValue } from "./logic/ui-state.js";
-import { activateSheet, getWorkbookState, insertSampleData, readDataRows, saveSheetMapping, writeHeaders, writeResults } from "./sheet-adapter.js";
+import { activateSheet, autofitResultColumns, getWorkbookState, insertSampleData, readDataRows, saveSheetMapping, writeHeaders, writeResults } from "./sheet-adapter.js";
 import { getApiKey, getLearnedAliases, getUserPrefs, saveLearnedAliases, saveUserPrefs } from "./prefs-storage.js";
 import { showConfirm } from "./logic/modal.js";
 
@@ -387,9 +387,6 @@ async function handleGenerate() {
 
     setToast(`Finished loading ${rows.length} rows. ${sortedValidIndexes.length}/${rows.length} rows are valid.`);
 
-    const results = {};
-    for (const name of Object.keys(fields)) results[name] = {};
-
     const batches = [];
     for (let i = 0; i < sortedValidIndexes.length; i += API_BATCH_SIZE) {
       const indexes = sortedValidIndexes.slice(i, i + API_BATCH_SIZE);
@@ -414,12 +411,14 @@ async function handleGenerate() {
           if (fieldKey === ERROR_KEY || GEOCODE_FIELDS.includes(fieldKey)) continue;
           if (!returnedFields.includes(fieldKey)) {
             delete fields[fieldKey];
-            delete results[fieldKey];
           }
         }
         await writeHeaders(fields, targetSheet);
         fieldsFinalized = true;
       }
+
+      const batchResults = {};
+      for (const name of Object.keys(fields)) batchResults[name] = {};
 
       for (let j = 0; j < indexes.length; j++) {
         if (!json[j]) continue;
@@ -427,29 +426,33 @@ async function handleGenerate() {
         for (const [field, value] of Object.entries(json[j])) {
           if (field === "query_id") continue;
           if (field === "geocode" && value && value.location) {
-            if (results.geocode_latitude) results.geocode_latitude[rowIndex] = value.location.lat ?? "";
-            if (results.geocode_longitude) results.geocode_longitude[rowIndex] = value.location.lng ?? "";
-            if (results.geocode_precision) results.geocode_precision[rowIndex] = value.location_type ?? "";
-          } else if (results[field] !== undefined) {
-            results[field][rowIndex] = value;
+            if (batchResults.geocode_latitude) batchResults.geocode_latitude[rowIndex] = value.location.lat ?? "";
+            if (batchResults.geocode_longitude) batchResults.geocode_longitude[rowIndex] = value.location.lng ?? "";
+            if (batchResults.geocode_precision) batchResults.geocode_precision[rowIndex] = value.location_type ?? "";
+          } else if (batchResults[field] !== undefined) {
+            batchResults[field][rowIndex] = value;
           }
         }
       }
 
+      await writeResults(fields, batchResults, targetSheet, { autofit: false });
       totalPlaceKeys += indexes.length;
     }
 
-    if (!fieldsFinalized && insertError && fields[ERROR_KEY]) {
-      await writeHeaders({ [ERROR_KEY]: fields[ERROR_KEY] }, targetSheet);
-    }
-
-    if (insertError && results[ERROR_KEY]) {
-      for (const rowIndex of sortedInvalidIndexes) {
-        results[ERROR_KEY][rowIndex] = errorRows[rowIndex];
+    if (insertError && fields[ERROR_KEY] && sortedInvalidIndexes.length > 0) {
+      if (!fieldsFinalized) {
+        await writeHeaders({ [ERROR_KEY]: fields[ERROR_KEY] }, targetSheet);
       }
+      const errorResults = { [ERROR_KEY]: {} };
+      for (const rowIndex of sortedInvalidIndexes) {
+        errorResults[ERROR_KEY][rowIndex] = errorRows[rowIndex];
+      }
+      await writeResults({ [ERROR_KEY]: fields[ERROR_KEY] }, errorResults, targetSheet, { autofit: false });
     }
 
-    await writeResults(fields, results, targetSheet);
+    if (fieldsFinalized || (insertError && fields[ERROR_KEY] && sortedInvalidIndexes.length > 0)) {
+      await autofitResultColumns(fields, targetSheet);
+    }
 
     setToast(`Done! Generated ${totalPlaceKeys} Placekeys.`, "success");
   } catch (err) {
