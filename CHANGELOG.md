@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### CI
+
+- `publish.yml` no longer triggers on GA version tags — the tag-triggered deploy was redundant (the same commit was already deployed by the preceding main-push run) and always failed the `github-pages` environment protection rule that restricts deployments to `main`. Pages now deploys exclusively from pushes to `main`. The `release.yml` workflow that creates the GitHub Release on tag push is unchanged.
+
 ## 1.0.3 — 2026-04-24
 
 ### Changed
