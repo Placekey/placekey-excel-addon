@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Changed
+
+- **Pipeline the Generate flow**. Previously the add-in read every row of the sheet into memory, validated them all, built every batch, and only then started calling the Placekey API. On a 500k-row workbook in Excel for the Web that meant ~12 minutes of blank staring before any Placekeys appeared. The flow is now streamed: a new `streamDataRows` async-generator in `sheet-adapter.js` yields `READ_CHUNK_ROWS` (100) rows at a time, and `taskpane.js` validates each chunk as it arrives, fills `API_BATCH_SIZE` (100) batches, and dispatches them to the Placekey API immediately. The next chunk's Office.js read is kicked off before awaiting the API response, so the Excel-read channel and the Placekey HTTPS channel run in parallel. First Placekeys land in the sheet within seconds of clicking Generate regardless of total sheet size.
+- New `readDataHeaders` helper reads only row 1, so pre-flight work (overwrite-warning prompt, saving learned aliases / prefs / sheet mapping) no longer blocks on the data-row read.
+- `readDataRows` is retained as a thin wrapper over `streamDataRows` for existing callers and tests; the single-`Excel.run`-many-syncs implementation has been replaced with per-chunk `Excel.run` invocations that use `worksheets.getItem(name)` directly (sync count unchanged, but context lifetime no longer ties up the Office.js channel during subsequent API + write work).
+
 ### CI
 
 - `publish.yml` no longer triggers on GA version tags — the tag-triggered deploy was redundant (the same commit was already deployed by the preceding main-push run) and always failed the `github-pages` environment protection rule that restricts deployments to `main`. Pages now deploys exclusively from pushes to `main`. The `release.yml` workflow that creates the GitHub Release on tag push is unchanged.

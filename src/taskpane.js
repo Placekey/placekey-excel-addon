@@ -1,11 +1,22 @@
 import { API_BATCH_SIZE, ERROR_KEY, GEOCODE_FIELDS, NO_INPUT_STRING } from "./logic/constants.js";
 import { computeAutomap } from "./logic/automap.js";
 import { buildColumnOptions, buildSheetOptions } from "./logic/html-helpers.js";
-import { hasDuplicateMappings, validateAllRows } from "./logic/validation.js";
+import { hasDuplicateMappings, isValidRow } from "./logic/validation.js";
+import { EMPTY_ROW_ERROR_MESSAGE } from "./logic/constants.js";
 import { prepareOutputFields, transformColumnMappings } from "./logic/transform.js";
 import { callPlacekeyApi } from "./logic/api-client.js";
 import { collectOverwriteHeaders, computeStatus, duplicateColumns, resolveFieldValue } from "./logic/ui-state.js";
-import { activateSheet, autofitResultColumns, getWorkbookState, insertSampleData, readDataRows, saveSheetMapping, writeHeaders, writeResults } from "./sheet-adapter.js";
+import {
+  activateSheet,
+  autofitResultColumns,
+  getWorkbookState,
+  insertSampleData,
+  readDataHeaders,
+  saveSheetMapping,
+  streamDataRows,
+  writeHeaders,
+  writeResults,
+} from "./sheet-adapter.js";
 import { getApiKey, getLearnedAliases, getUserPrefs, saveLearnedAliases, saveUserPrefs } from "./prefs-storage.js";
 import { showConfirm } from "./logic/modal.js";
 
@@ -338,7 +349,7 @@ async function handleGenerate() {
 
     const insertError = $("insertError").checked;
 
-    const { headers, rows } = await readDataRows(targetSheet);
+    const headers = await readDataHeaders(targetSheet);
     const transformed = transformColumnMappings(mappings, headers);
 
     for (const [fieldId, mapping] of Object.entries(transformed)) {
@@ -347,8 +358,6 @@ async function handleGenerate() {
         throw new Error(`Mapped column "${mapping.columnName}" for ${fieldId} is no longer in the sheet headers. Refresh and re-map.`);
       }
     }
-
-    const { validRows, errorRows, sortedValidIndexes, sortedInvalidIndexes } = validateAllRows(rows, transformed, insertError);
 
     const expandedFields = [...requestFields];
     if (expandedFields.includes("geocode")) expandedFields.push(...GEOCODE_FIELDS);
@@ -385,25 +394,24 @@ async function handleGenerate() {
     state.mapData = { ...mappings };
     state.learnedAliases = await getLearnedAliases();
 
-    setToast(`Finished loading ${rows.length} rows. ${sortedValidIndexes.length}/${rows.length} rows are valid.`);
-
-    const batches = [];
-    for (let i = 0; i < sortedValidIndexes.length; i += API_BATCH_SIZE) {
-      const indexes = sortedValidIndexes.slice(i, i + API_BATCH_SIZE);
-      batches.push({ indexes, rows: indexes.map((idx) => validRows[idx]) });
-    }
-
     let totalPlaceKeys = 0;
     let fieldsFinalized = false;
+    let validCount = 0;
+    const errorRows = {};
     const apiOptions = { addressMatch: false, nameMatch: false };
 
-    for (let i = 0; i < batches.length; i++) {
-      const { indexes, rows: batchRows } = batches[i];
-      const processed = Math.min((i + 1) * API_BATCH_SIZE, sortedValidIndexes.length);
-      setToast(`Fetching Placekeys for ${processed}/${sortedValidIndexes.length} valid rows...`);
+    let batchIndexes = [];
+    let batchRows = [];
 
-      const json = await callPlacekeyApi(batchRows, apiOptions, requestFields, apiKey);
-      if (!json || !json.length) continue;
+    async function flushBatch() {
+      if (batchIndexes.length === 0) return;
+      const indexes = batchIndexes;
+      const rowsForApi = batchRows;
+      batchIndexes = [];
+      batchRows = [];
+
+      const json = await callPlacekeyApi(rowsForApi, apiOptions, requestFields, apiKey);
+      if (!json || !json.length) return;
 
       if (!fieldsFinalized) {
         const returnedFields = Object.keys(json[0]).filter((f) => f !== "query_id");
@@ -439,22 +447,70 @@ async function handleGenerate() {
       totalPlaceKeys += indexes.length;
     }
 
-    if (insertError && fields[ERROR_KEY] && sortedInvalidIndexes.length > 0) {
+    // Stream rows and pipeline: read one chunk ahead while the previous chunk's
+    // batches are being sent to the API and written back to the sheet. The
+    // generator iterator gives us explicit control over when to fetch the next
+    // chunk — we kick off next() before awaiting API work so the Office.js read
+    // round-trip overlaps with the HTTPS call to Placekey.
+    const iterator = streamDataRows(targetSheet)[Symbol.asyncIterator]();
+    let nextChunkPromise = iterator.next();
+    let sawAnyRows = false;
+
+    while (true) {
+      const chunk = await nextChunkPromise;
+      if (chunk.done) break;
+      nextChunkPromise = iterator.next();
+
+      const { startRowIndex, totalRows, rows: chunkRows } = chunk.value;
+      sawAnyRows = true;
+      const dataEnd = totalRows - 1;
+
+      for (let j = 0; j < chunkRows.length; j++) {
+        const absoluteRow = startRowIndex + j;
+        if (absoluteRow === 0) continue;
+        const dataIdx = absoluteRow - 1;
+
+        const { isValid, message, row } = isValidRow(chunkRows[j], transformed);
+        if (!isValid) {
+          if (insertError && message !== EMPTY_ROW_ERROR_MESSAGE) {
+            errorRows[dataIdx] = message;
+          }
+          continue;
+        }
+
+        batchIndexes.push(dataIdx);
+        batchRows.push(row);
+        validCount++;
+
+        if (batchIndexes.length >= API_BATCH_SIZE) {
+          setToast(`Fetching Placekeys (${validCount} valid rows through row ${absoluteRow}/${dataEnd})...`);
+          await flushBatch();
+        }
+      }
+    }
+
+    if (batchIndexes.length > 0) {
+      setToast(`Fetching Placekeys (${validCount} valid rows)...`);
+      await flushBatch();
+    }
+
+    const hasErrorsToWrite = insertError && fields[ERROR_KEY] && Object.keys(errorRows).length > 0;
+    if (hasErrorsToWrite) {
       if (!fieldsFinalized) {
         await writeHeaders({ [ERROR_KEY]: fields[ERROR_KEY] }, targetSheet);
       }
-      const errorResults = { [ERROR_KEY]: {} };
-      for (const rowIndex of sortedInvalidIndexes) {
-        errorResults[ERROR_KEY][rowIndex] = errorRows[rowIndex];
-      }
-      await writeResults({ [ERROR_KEY]: fields[ERROR_KEY] }, errorResults, targetSheet, { autofit: false });
+      await writeResults({ [ERROR_KEY]: fields[ERROR_KEY] }, { [ERROR_KEY]: errorRows }, targetSheet, { autofit: false });
     }
 
-    if (fieldsFinalized || (insertError && fields[ERROR_KEY] && sortedInvalidIndexes.length > 0)) {
+    if (fieldsFinalized || hasErrorsToWrite) {
       await autofitResultColumns(fields, targetSheet);
     }
 
-    setToast(`Done! Generated ${totalPlaceKeys} Placekeys.`, "success");
+    if (!sawAnyRows) {
+      setToast("This sheet looks empty.", "error");
+    } else {
+      setToast(`Done! Generated ${totalPlaceKeys} Placekeys.`, "success");
+    }
   } catch (err) {
     setToast(err && err.message ? err.message : "Something went wrong.", "error");
   } finally {
