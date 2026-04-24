@@ -2,12 +2,6 @@ name: Publish to GitHub Pages
 on:
   push:
     branches: [main]
-    # Only GA version tags (vMAJOR.MINOR.PATCH). Pre-release suffixes like
-    # v1.0.0-rc1 or build-metadata suffixes like v1.0.0+meta must NOT publish
-    # to production Pages — manifest-prod.js strips those suffixes and an RC
-    # would collide with the eventual GA release. The glob narrows it down
-    # and the job-level `if` below guards against `-` / `+` sneaking through.
-    tags: ["v[0-9]*.[0-9]*.[0-9]*"]
 
 permissions:
   contents: read
@@ -20,9 +14,6 @@ concurrency:
 
 jobs:
   build-and-deploy:
-    # Skip pre-release / build-metadata tags (v1.0.0-rc1, v1.0.0+meta, ...).
-    # Still run for branch pushes to main (where github.ref is refs/heads/main).
-    if: ${{ github.ref_type != 'tag' || (!contains(github.ref_name, '-') && !contains(github.ref_name, '+')) }}
     runs-on: ubuntu-latest
     environment:
       name: github-pages
