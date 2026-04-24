@@ -9,6 +9,10 @@
 - `.lycheeignore` entry set for known pre-release link-check failures (#3).
 - Explicit `@eslint/js` dev-dependency to satisfy ESLint 10's flat-config consumer requirement (#2).
 
+### Fixed
+
+- `resolveFieldValue` now respects an explicit `"— none —"` saved selection. Previously a field the user intentionally unmapped would get re-populated by auto-map on the next sheet load; now a saved `NO_INPUT_STRING` is honored and only a missing saved entry falls through to auto-map.
+
 ### Changed
 
 - Dev-dependency major bumps: ESLint 9 → 10, Vitest 3 → 4, Vite 7 → 8, `@vitest/coverage-v8` 3 → 4, `office-addin-manifest` 1 → 2 (#2).
