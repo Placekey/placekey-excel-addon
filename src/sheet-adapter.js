@@ -1,6 +1,5 @@
-import { SHEET_MAPPING_KEY_PREFIX } from "./logic/constants.js";
+import { READ_CHUNK_ROWS, SHEET_MAPPING_KEY_PREFIX } from "./logic/constants.js";
 import { planContiguousRanges } from "./logic/write-planner.js";
-import { analyzeSheetText } from "./logic/ui-state.js";
 
 async function resolveSheet(context, target) {
   if (!target) return context.workbook.worksheets.getActiveWorksheet();
@@ -57,11 +56,27 @@ async function readActiveSheetInfoInContext(context, sheet) {
 
   const endRow = used.rowIndex + used.rowCount - 1;
   const endCol = used.columnIndex + used.columnCount - 1;
-  const absRange = sheet.getRangeByIndexes(0, 0, endRow + 1, endCol + 1);
-  absRange.load("text");
-  await context.sync();
+  const rowCount = endRow + 1;
+  const columnCount = endCol + 1;
 
-  return { ...analyzeSheetText(absRange.text), sheetId, mapData };
+  const headerRange = sheet.getRangeByIndexes(0, 0, 1, columnCount);
+  headerRange.load("text");
+  await context.sync();
+  const headerRow = (headerRange.text[0] || []).map((v) => (v == null ? "" : String(v)));
+
+  if (headerRow.some((h) => h !== "")) {
+    return { cols: [headerRow], rowCount, columnCount, sheetId, mapData, headersMissing: false };
+  }
+
+  const probeRows = Math.min(READ_CHUNK_ROWS, rowCount - 1);
+  if (probeRows <= 0) {
+    return { cols: false, rowCount, columnCount, sheetId, mapData, headersMissing: false };
+  }
+  const probeRange = sheet.getRangeByIndexes(1, 0, probeRows, columnCount);
+  probeRange.load("text");
+  await context.sync();
+  const headersMissing = (probeRange.text || []).some((row) => row.some((cell) => cell != null && String(cell) !== ""));
+  return { cols: false, rowCount, columnCount, sheetId, mapData, headersMissing };
 }
 
 function parseSettingValue(setting) {
@@ -96,15 +111,24 @@ export async function readDataRows(target) {
       return { headers: [], rows: [] };
     }
 
-    const endRow = used.rowIndex + used.rowCount - 1;
-    const endCol = used.columnIndex + used.columnCount - 1;
-    const absRange = sheet.getRangeByIndexes(0, 0, endRow + 1, endCol + 1);
-    absRange.load("text");
-    await context.sync();
+    const totalRows = used.rowIndex + used.rowCount;
+    const columnCount = used.columnIndex + used.columnCount;
 
-    const text = (absRange.text || []).map((row) => row.map((v) => (v == null ? "" : String(v))));
-    const headers = text[0] || [];
-    const rows = text.slice(1);
+    let headers = [];
+    const rows = [];
+    for (let startRow = 0; startRow < totalRows; startRow += READ_CHUNK_ROWS) {
+      const chunkRows = Math.min(READ_CHUNK_ROWS, totalRows - startRow);
+      const range = sheet.getRangeByIndexes(startRow, 0, chunkRows, columnCount);
+      range.load("text");
+      await context.sync();
+      const text = (range.text || []).map((row) => row.map((v) => (v == null ? "" : String(v))));
+      if (startRow === 0) {
+        headers = text[0] || [];
+        for (let i = 1; i < text.length; i++) rows.push(text[i]);
+      } else {
+        for (const r of text) rows.push(r);
+      }
+    }
     return { headers, rows };
   });
 }

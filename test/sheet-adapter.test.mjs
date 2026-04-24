@@ -58,6 +58,35 @@ describe("getWorkbookState", () => {
     expect(state.info.cols).toBe(false);
   });
 
+  it("does not load data rows when resolving sheet info (only header row + optional probe)", async () => {
+    // A 500-row sheet: the info read must not pull 500 rows of text — only
+    // the header row. One usedRange sync + one header sync = 2 syncs total.
+    const data = [["Name", "Street", "City"]];
+    for (let i = 0; i < 500; i++) data.push([`Name ${i}`, `${i} Main St`, "SF"]);
+    const mock = install({
+      sheets: [{ id: "s1", name: "Big", data }],
+      activeId: "s1",
+    });
+    const state = await getWorkbookState();
+    expect(state.info.cols).toEqual([["Name", "Street", "City"]]);
+    // 1 sync for worksheets+active load, 1 for usedRange+settings, 1 for header row.
+    expect(mock.getContext()._syncCount).toBe(3);
+  });
+
+  it("flags headersMissing via a small probe when row 1 is empty but data exists below", async () => {
+    // Row 1 empty, but data present in row 2 onward. The probe should catch it
+    // without loading the entire sheet.
+    const data = [["", "", ""]];
+    for (let i = 0; i < 10; i++) data.push(["", `${i} Main St`, "SF"]);
+    install({
+      sheets: [{ id: "s1", name: "NoHeaders", data }],
+      activeId: "s1",
+    });
+    const state = await getWorkbookState();
+    expect(state.info.cols).toBe(false);
+    expect(state.info.headersMissing).toBe(true);
+  });
+
   it("hydrates mapData from workbook settings keyed by sheet id", async () => {
     install({
       ...buildSpec(),
@@ -89,6 +118,27 @@ describe("readDataRows", () => {
     const { headers, rows } = await readDataRows({ name: "Empty", id: "s1" });
     expect(headers).toEqual([]);
     expect(rows).toEqual([]);
+  });
+
+  it("reads large sheets in fixed-size chunks (payload-limit fix)", async () => {
+    // 250 data rows → 1 header chunk + 2 more chunks of 100 + 1 chunk of 50 (via 100-row slabs).
+    // Anchor to the 100-row chunk constant: one usedRange sync, then ceil(251/100)=3 chunk syncs.
+    const totalDataRows = 250;
+    const data = [["Name", "Street", "City"]];
+    for (let i = 0; i < totalDataRows; i++) {
+      data.push([`Name ${i}`, `${i} Main St`, "San Francisco"]);
+    }
+    const mock = install({
+      sheets: [{ id: "s1", name: "Big", data }],
+      activeId: "s1",
+    });
+    const { headers, rows } = await readDataRows({ name: "Big", id: "s1" });
+    expect(headers).toEqual(["Name", "Street", "City"]);
+    expect(rows).toHaveLength(totalDataRows);
+    expect(rows[0]).toEqual(["Name 0", "0 Main St", "San Francisco"]);
+    expect(rows[totalDataRows - 1]).toEqual(["Name 249", "249 Main St", "San Francisco"]);
+    // 1 resolveSheet sync + 1 usedRange sync + 3 chunk syncs (rows 0-99, 100-199, 200-250).
+    expect(mock.getContext()._syncCount).toBe(5);
   });
 });
 

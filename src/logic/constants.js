@@ -16,6 +16,7 @@ export const MINIMUM_INPUTS = [
 ];
 
 export const API_BATCH_SIZE = 100;
+export const READ_CHUNK_ROWS = 100;
 export const API_URL = "https://api.placekey.io/v1/placekeys";
 export const MAX_RETRIES = 3;
 export const RATE_LIMIT_MS = 1100;

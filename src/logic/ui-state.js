@@ -18,9 +18,10 @@ export function analyzeSheetText(text) {
 }
 
 export function resolveFieldValue(fieldId, headers, mapData, automap) {
-  const saved = mapData && mapData[fieldId];
-  if (saved && saved !== NO_INPUT_STRING && headers.includes(saved)) {
-    return saved;
+  if (mapData && Object.prototype.hasOwnProperty.call(mapData, fieldId)) {
+    const saved = mapData[fieldId];
+    if (saved === NO_INPUT_STRING) return NO_INPUT_STRING;
+    if (saved && headers.includes(saved)) return saved;
   }
   const auto = automap && automap[fieldId];
   if (auto && headers.includes(auto)) {

@@ -2,12 +2,24 @@
 
 ## [Unreleased]
 
+## 1.0.2 — 2026-04-24
+
+### Fixed
+
+- Chunk sheet reads in 100-row slabs so large workbooks no longer trip Office.js's response-payload ceiling (`The response payload size has exceeded the limit.`). `readDataRows` now issues one `context.sync()` per 100-row slab instead of loading the entire used range in a single sync. `readActiveSheetInfoInContext` now only loads the header row (plus a small probe when row 1 is empty), rather than the full sheet, when populating the taskpane.
+
+## 1.0.1 — 2026-04-24
+
 ### Added
 
 - Taskpane dark mode: respects `prefers-color-scheme: dark` via a dark palette token set (#5).
 - Build-version display in taskpane footer. Vite injects `__APP_VERSION__`, `__APP_COMMIT__`, and `__APP_BUILD_DATE__` as define globals rendered at the bottom of the sidebar (#10).
 - `.lycheeignore` entry set for known pre-release link-check failures (#3).
 - Explicit `@eslint/js` dev-dependency to satisfy ESLint 10's flat-config consumer requirement (#2).
+
+### Fixed
+
+- `resolveFieldValue` now respects an explicit `"— none —"` saved selection. Previously a field the user intentionally unmapped would get re-populated by auto-map on the next sheet load; now a saved `NO_INPUT_STRING` is honored and only a missing saved entry falls through to auto-map.
 
 ### Changed
 

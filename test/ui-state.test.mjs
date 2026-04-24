@@ -78,8 +78,14 @@ describe("resolveFieldValue", () => {
     expect(resolveFieldValue("city", headers, mapData, automap)).toBe("City");
   });
 
-  it("ignores NO_INPUT saved mappings and uses automap", () => {
+  it("respects an explicit NO_INPUT saved mapping over automap", () => {
     const mapData = { city: NO_INPUT };
+    const automap = { city: "City" };
+    expect(resolveFieldValue("city", headers, mapData, automap)).toBe(NO_INPUT);
+  });
+
+  it("uses automap when the field has never been saved (undefined)", () => {
+    const mapData = { location_name: "Name" };
     const automap = { city: "City" };
     expect(resolveFieldValue("city", headers, mapData, automap)).toBe("City");
   });
