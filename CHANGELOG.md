@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## 1.1.1 — 2026-04-24
+
 ### Fixed
 
 - **Surface per-row Placekey API failures in the error column.** Previously when a row in a 100-row bulk batch came back from the API with no Placekey (e.g. the address couldn't be matched, often because country was unmapped and silently sent as `US`), our response loop iterated `Object.entries` over `{ query_id, placekey: null, error: "..." }` and silently wrote nulls to the output cells. The `error` field from the API was dropped because our column key is `placekey_error`, not `error`. The row showed up blank and the error column showed up blank — no indication anything went wrong. Response handling is now a standalone `processBatchResponse(json, indexes, fields, insertError)` helper that covers all three API-side failure modes: a missing reply element, an explicit `error` field, and a null/empty `placekey` with no other signal. All three now write a clear message into the error column when "Add error column for invalid rows" is checked.
