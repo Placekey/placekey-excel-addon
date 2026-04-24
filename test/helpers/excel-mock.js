@@ -261,15 +261,17 @@ class Workbook {
 }
 
 class Context {
-  constructor(workbook) {
+  constructor(workbook, totals) {
     this.workbook = workbook;
     this._syncCount = 0;
+    this._totals = totals;
   }
   async sync() {
     // In the real runtime, sync resolves all pending .load()s. Our mock
     // already has the data available synchronously; sync() just clears
     // the pending markers and counts as a round-trip for assertions.
     this._syncCount += 1;
+    if (this._totals) this._totals.syncs += 1;
   }
 }
 
@@ -289,10 +291,12 @@ export function createExcelMock(spec = {}) {
   }
 
   const contextRef = { current: null };
+  const totals = { runs: 0, syncs: 0 };
 
   const Excel = {
     async run(fn) {
-      const context = new Context(workbook);
+      totals.runs += 1;
+      const context = new Context(workbook, totals);
       contextRef.current = context;
       return await fn(context);
     },
@@ -303,6 +307,7 @@ export function createExcelMock(spec = {}) {
     workbook,
     sheets,
     getContext: () => contextRef.current,
+    getTotals: () => ({ runs: totals.runs, syncs: totals.syncs }),
     // Test helpers
     renameSheet(id, newName) {
       const sheet = sheets.find((s) => s.id === id);

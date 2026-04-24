@@ -100,37 +100,66 @@ export async function activateSheet(sheetName) {
   });
 }
 
-export async function readDataRows(target) {
+export async function readDataHeaders(target) {
   return Excel.run(async (context) => {
     const sheet = await resolveSheet(context, target);
     const used = sheet.getUsedRangeOrNullObject();
     used.load(["rowIndex", "columnIndex", "rowCount", "columnCount"]);
     await context.sync();
-
-    if (used.isNullObject || !used.rowCount || !used.columnCount) {
-      return { headers: [], rows: [] };
-    }
-
-    const totalRows = used.rowIndex + used.rowCount;
+    if (used.isNullObject || !used.rowCount || !used.columnCount) return [];
     const columnCount = used.columnIndex + used.columnCount;
+    const range = sheet.getRangeByIndexes(0, 0, 1, columnCount);
+    range.load("text");
+    await context.sync();
+    return (range.text[0] || []).map((v) => (v == null ? "" : String(v)));
+  });
+}
 
-    let headers = [];
-    const rows = [];
-    for (let startRow = 0; startRow < totalRows; startRow += READ_CHUNK_ROWS) {
-      const chunkRows = Math.min(READ_CHUNK_ROWS, totalRows - startRow);
-      const range = sheet.getRangeByIndexes(startRow, 0, chunkRows, columnCount);
+export async function* streamDataRows(target, { chunkSize = READ_CHUNK_ROWS } = {}) {
+  const dims = await Excel.run(async (context) => {
+    const sheet = await resolveSheet(context, target);
+    sheet.load("name");
+    const used = sheet.getUsedRangeOrNullObject();
+    used.load(["rowIndex", "columnIndex", "rowCount", "columnCount"]);
+    await context.sync();
+    if (used.isNullObject || !used.rowCount || !used.columnCount) return null;
+    return {
+      sheetName: sheet.name,
+      totalRows: used.rowIndex + used.rowCount,
+      columnCount: used.columnIndex + used.columnCount,
+    };
+  });
+  if (!dims) return;
+
+  for (let startRow = 0; startRow < dims.totalRows; startRow += chunkSize) {
+    const chunkRows = Math.min(chunkSize, dims.totalRows - startRow);
+    const text = await Excel.run(async (context) => {
+      const sheet = context.workbook.worksheets.getItem(dims.sheetName);
+      const range = sheet.getRangeByIndexes(startRow, 0, chunkRows, dims.columnCount);
       range.load("text");
       await context.sync();
-      const text = (range.text || []).map((row) => row.map((v) => (v == null ? "" : String(v))));
-      if (startRow === 0) {
-        headers = text[0] || [];
-        for (let i = 1; i < text.length; i++) rows.push(text[i]);
-      } else {
-        for (const r of text) rows.push(r);
-      }
+      return range.text || [];
+    });
+    yield {
+      startRowIndex: startRow,
+      totalRows: dims.totalRows,
+      rows: text.map((row) => row.map((v) => (v == null ? "" : String(v)))),
+    };
+  }
+}
+
+export async function readDataRows(target) {
+  let headers = [];
+  const rows = [];
+  for await (const chunk of streamDataRows(target)) {
+    let startJ = 0;
+    if (chunk.startRowIndex === 0) {
+      headers = chunk.rows[0] || [];
+      startJ = 1;
     }
-    return { headers, rows };
-  });
+    for (let j = startJ; j < chunk.rows.length; j++) rows.push(chunk.rows[j]);
+  }
+  return { headers, rows };
 }
 
 export async function writeHeaders(fields, target) {
