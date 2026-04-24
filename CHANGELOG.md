@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Chunk sheet reads in 100-row slabs so large workbooks no longer trip Office.js's response-payload ceiling (`The response payload size has exceeded the limit.`). `readDataRows` now issues one `context.sync()` per 100-row slab instead of loading the entire used range in a single sync. `readActiveSheetInfoInContext` now only loads the header row (plus a small probe when row 1 is empty), rather than the full sheet, when populating the taskpane.
+
 ## 1.0.1 — 2026-04-24
 
 ### Added
