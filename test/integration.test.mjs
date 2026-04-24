@@ -7,7 +7,7 @@ const NO_INPUT = "--";
 
 describe("full validation pipeline", () => {
   it("chains transform → validate → prepareOutputFields correctly", () => {
-    const headers = ["Name", "Street", "City", "State", "Zip"];
+    const headers = ["Name", "Street", "City", "State", "Zip", "Country"];
     const raw = {
       location_name: "Name",
       street_address: "Street",
@@ -16,7 +16,7 @@ describe("full validation pipeline", () => {
       postal_code: "Zip",
       latitude: NO_INPUT,
       longitude: NO_INPUT,
-      iso_country_code: NO_INPUT,
+      iso_country_code: "Country",
       store_id: NO_INPUT,
       phone_number: NO_INPUT,
       website: NO_INPUT,
@@ -27,10 +27,10 @@ describe("full validation pipeline", () => {
     const transformed = transformColumnMappings(raw, headers);
 
     const rows = [
-      ["Shop A", "123 Main St", "NYC", "NY", "10001"],
-      ["Shop B", "456 Oak Ave", "LA", "CA", "90001"],
-      ["", "", "", "", ""],
-      ["Shop C", "", "", "", ""],
+      ["Shop A", "123 Main St", "NYC", "NY", "10001", "US"],
+      ["Shop B", "456 Oak Ave", "LA", "CA", "90001", "US"],
+      ["", "", "", "", "", ""],
+      ["Shop C", "", "", "", "", ""],
     ];
 
     const { validRows, sortedValidIndexes, sortedInvalidIndexes, errorRows } = validateAllRows(rows, transformed, true);
@@ -44,8 +44,35 @@ describe("full validation pipeline", () => {
     expect(validRows[1].city).toBe("LA");
 
     const fields = prepareOutputFields(["placekey", "confidence_score"], headers);
-    expect(fields.placekey.columnIndex).toBe(5);
-    expect(fields.confidence_score.columnIndex).toBe(6);
+    expect(fields.placekey.columnIndex).toBe(6);
+    expect(fields.confidence_score.columnIndex).toBe(7);
+  });
+
+  it("non-US addresses without a mapped country fail validation (no silent US default)", () => {
+    const headers = ["Street", "City", "Region", "Postal"];
+    const mappings = transformColumnMappings(
+      {
+        location_name: NO_INPUT,
+        street_address: "Street",
+        city: "City",
+        region: "Region",
+        postal_code: "Postal",
+        latitude: NO_INPUT,
+        longitude: NO_INPUT,
+        iso_country_code: NO_INPUT,
+        store_id: NO_INPUT,
+        phone_number: NO_INPUT,
+        website: NO_INPUT,
+        naics_code: NO_INPUT,
+        mcc_code: NO_INPUT,
+      },
+      headers,
+    );
+    const rows = [["73 Sora Gardens SE", "Calgary", "Alberta", "T3S0V3"]];
+    const { sortedValidIndexes, sortedInvalidIndexes, errorRows } = validateAllRows(rows, mappings, true);
+    expect(sortedValidIndexes).toEqual([]);
+    expect(sortedInvalidIndexes).toEqual([0]);
+    expect(errorRows[0]).toContain("minimum input");
   });
 });
 

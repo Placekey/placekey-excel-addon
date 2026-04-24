@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll } from "vitest";
-import { transformColumnMappings, prepareOutputFields } from "../src/logic/transform.js";
+import { transformColumnMappings, prepareOutputFields, processBatchResponse } from "../src/logic/transform.js";
 import { mapRowToObject, hasValidLatLongValues, isValidRow, validateAllRows } from "../src/logic/validation.js";
+import { ERROR_KEY } from "../src/logic/constants.js";
 
 const NO_INPUT = "--";
 
@@ -81,12 +82,15 @@ describe("mapRowToObject", () => {
     expect(result.street_address).toBe("598 Portola Dr");
   });
 
-  it("defaults iso_country_code to US when unmapped", () => {
+  it("leaves iso_country_code empty when unmapped (no silent default)", () => {
+    // v1.1.1: previously defaulted to "US", which silently produced wrong
+    // Placekeys for international data. Now the user must map a Country
+    // column — failing rows land in the error column with a clear message.
     const mappings = buildMappings(FULL_HEADERS, { iso_country_code: NO_INPUT });
     const row = ["", "598 Portola Dr", "San Francisco", "CA", "94131", "", "", "", "", "", "", "", ""];
     const result = mapRowToObject(row, mappings);
 
-    expect(result.iso_country_code).toBe("US");
+    expect(result.iso_country_code).toBe("");
   });
 
   it("maps metadata fields correctly", () => {
@@ -183,12 +187,24 @@ describe("isValidRow", () => {
     expect(result.message).toContain("no values");
   });
 
-  it("invalid: only country code defaults to US (treated as empty)", () => {
+  it("invalid: country unmapped + empty row (no silent US default)", () => {
     const mappingsNoCountry = buildMappings(FULL_HEADERS, { iso_country_code: NO_INPUT });
     const row = ["", "", "", "", "", "", "", "", "", "", "", "", ""];
     const result = isValidRow(row, mappingsNoCountry);
     expect(result.isValid).toBe(false);
-    expect(result.row.iso_country_code).toBe("US");
+    expect(result.row.iso_country_code).toBe("");
+  });
+
+  it("invalid: non-US address with country unmapped (previously silently sent as US)", () => {
+    // A Calgary row with lat/long would still pass via the lat/long input set.
+    // But when lat/long is absent, the address-based sets require iso_country_code,
+    // so without a mapped country the row now fails validation explicitly rather
+    // than being silently dispatched to the API as "Calgary, Alberta, US".
+    const mappingsNoCountry = buildMappings(FULL_HEADERS, { iso_country_code: NO_INPUT });
+    const row = ["", "73 Sora Gardens SE", "Calgary", "Alberta", "T3S0V3", "", "", "", "", "", "", "", ""];
+    const result = isValidRow(row, mappingsNoCountry);
+    expect(result.isValid).toBe(false);
+    expect(result.message).toContain("minimum input");
   });
 
   it("invalid: only location name (insufficient fields)", () => {
@@ -328,5 +344,99 @@ describe("prepareOutputFields", () => {
     expect(fields.placekey.columnIndex).toBe(1);
     expect(fields.confidence_score.columnIndex).toBe(2);
     expect(fields.gers.columnIndex).toBe(3);
+  });
+});
+
+describe("processBatchResponse", () => {
+  const fields = {
+    placekey: { columnIndex: 5 },
+    confidence_score: { columnIndex: 6 },
+    geocode_latitude: { columnIndex: 7 },
+    geocode_longitude: { columnIndex: 8 },
+    geocode_precision: { columnIndex: 9 },
+    [ERROR_KEY]: { columnIndex: 10 },
+  };
+  const indexes = [0, 1, 2];
+
+  it("maps response fields to batchResults keyed by row index", () => {
+    const json = [
+      { query_id: "0", placekey: "22z@5qt-39h-5vf", confidence_score: "HIGH" },
+      { query_id: "1", placekey: "238@5qv-x2t-789", confidence_score: "HIGH" },
+      { query_id: "2", placekey: "22s@8fc-fc6-fvf", confidence_score: "MEDIUM" },
+    ];
+    const result = processBatchResponse(json, indexes, fields, false);
+    expect(result.placekey).toEqual({ 0: "22z@5qt-39h-5vf", 1: "238@5qv-x2t-789", 2: "22s@8fc-fc6-fvf" });
+    expect(result.confidence_score).toEqual({ 0: "HIGH", 1: "HIGH", 2: "MEDIUM" });
+    expect(Object.keys(result[ERROR_KEY])).toHaveLength(0);
+  });
+
+  it("unpacks the nested geocode object into three separate fields", () => {
+    const json = [{ query_id: "0", placekey: "p", geocode: { location: { lat: 37.7, lng: -122.4 }, location_type: "ROOFTOP" } }];
+    const result = processBatchResponse(json, [0], fields, false);
+    expect(result.geocode_latitude[0]).toBe(37.7);
+    expect(result.geocode_longitude[0]).toBe(-122.4);
+    expect(result.geocode_precision[0]).toBe("ROOFTOP");
+  });
+
+  it("writes an error-column entry when the API reply is missing for a row", () => {
+    const json = [{ query_id: "0", placekey: "ok1" }, undefined, { query_id: "2", placekey: "ok2" }];
+    const result = processBatchResponse(json, indexes, fields, true);
+    expect(result.placekey).toEqual({ 0: "ok1", 2: "ok2" });
+    expect(result[ERROR_KEY][1]).toContain("No response");
+    expect(result[ERROR_KEY][0]).toBeUndefined();
+    expect(result[ERROR_KEY][2]).toBeUndefined();
+  });
+
+  it("surfaces an explicit per-row error string from the API", () => {
+    const json = [
+      { query_id: "0", placekey: "ok" },
+      { query_id: "1", placekey: null, error: "Address could not be validated" },
+    ];
+    const result = processBatchResponse(json, [0, 1], fields, true);
+    expect(result.placekey[0]).toBe("ok");
+    expect(result[ERROR_KEY][1]).toBe("Address could not be validated");
+  });
+
+  it("writes a 'no Placekey determined' note when placekey is null/missing and no explicit error", () => {
+    // This is the Calgary case: valid lat/long sent as address, API returns
+    // no Placekey and no explicit error — we must still flag it.
+    const json = [
+      { query_id: "0", placekey: "ok", confidence_score: "HIGH" },
+      { query_id: "1", placekey: null, confidence_score: null },
+      { query_id: "2", placekey: "", confidence_score: "" },
+    ];
+    const result = processBatchResponse(json, indexes, fields, true);
+    expect(result.placekey[0]).toBe("ok");
+    expect(result[ERROR_KEY][1]).toContain("No Placekey could be determined");
+    expect(result[ERROR_KEY][2]).toContain("No Placekey could be determined");
+    expect(result[ERROR_KEY][0]).toBeUndefined();
+  });
+
+  it("prefers the explicit API error over the generic 'no Placekey' fallback", () => {
+    const json = [{ query_id: "0", placekey: null, error: "Quota exceeded" }];
+    const result = processBatchResponse(json, [0], fields, true);
+    expect(result[ERROR_KEY][0]).toBe("Quota exceeded");
+  });
+
+  it("does not write error-column entries when insertError is false", () => {
+    const json = [undefined, { query_id: "1", placekey: null, error: "bad" }];
+    const fieldsNoError = { placekey: { columnIndex: 5 } };
+    const result = processBatchResponse(json, [0, 1], fieldsNoError, false);
+    expect(result[ERROR_KEY]).toBeUndefined();
+    expect(result.placekey[0]).toBeUndefined();
+    expect(result.placekey[1]).toBe("");
+  });
+
+  it("stringifies a non-string error object so the cell gets something useful", () => {
+    const json = [{ query_id: "0", placekey: null, error: { code: 42, message: "bad" } }];
+    const result = processBatchResponse(json, [0], fields, true);
+    expect(result[ERROR_KEY][0]).toContain("code");
+    expect(result[ERROR_KEY][0]).toContain("bad");
+  });
+
+  it("ignores the query_id field (never written to output)", () => {
+    const json = [{ query_id: "not-a-column", placekey: "ok" }];
+    const result = processBatchResponse(json, [0], fields, false);
+    expect(result.query_id).toBeUndefined();
   });
 });

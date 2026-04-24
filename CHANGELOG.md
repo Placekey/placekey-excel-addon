@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## 1.1.1 — 2026-04-24
+
+### Fixed
+
+- **Surface per-row Placekey API failures in the error column.** Previously when a row in a 100-row bulk batch came back from the API with no Placekey (e.g. the address couldn't be matched, often because country was unmapped and silently sent as `US`), our response loop iterated `Object.entries` over `{ query_id, placekey: null, error: "..." }` and silently wrote nulls to the output cells. The `error` field from the API was dropped because our column key is `placekey_error`, not `error`. The row showed up blank and the error column showed up blank — no indication anything went wrong. Response handling is now a standalone `processBatchResponse(json, indexes, fields, insertError)` helper that covers all three API-side failure modes: a missing reply element, an explicit `error` field, and a null/empty `placekey` with no other signal. All three now write a clear message into the error column when "Add error column for invalid rows" is checked.
+- **Remove the silent `iso_country_code` default of `US`.** `mapRowToObject` used to substitute `"US"` whenever the country column was unmapped, which produced meaningless Placekeys for non-US data (a Calgary address was being queried as "Calgary, Alberta, T3S0V3, US"). The default is gone: an unmapped country column now leaves the field empty, and address-based input sets (which all require `iso_country_code` in `MINIMUM_INPUTS`) fail validation with the existing "did not meet minimum input requirements" message. Pure lat/long rows still work without a country mapping. **Breaking for US-only users who never mapped the Country column** — they now need to add a Country column and map it. The mapping status chip will display "Need country" until they do.
+
 ## 1.1.0 — 2026-04-24
 
 ### Changed

@@ -1,4 +1,4 @@
-import { NO_INPUT_STRING } from "./constants.js";
+import { ERROR_KEY, NO_INPUT_STRING } from "./constants.js";
 
 export function transformColumnMappings(columnMappings, colsHeader) {
   const transformed = {};
@@ -14,6 +14,46 @@ export function transformColumnMappings(columnMappings, colsHeader) {
     }
   }
   return transformed;
+}
+
+export function processBatchResponse(json, indexes, fields, insertError) {
+  const batchResults = {};
+  for (const name of Object.keys(fields)) batchResults[name] = {};
+  const canWriteError = insertError && Object.prototype.hasOwnProperty.call(fields, ERROR_KEY);
+
+  for (let j = 0; j < indexes.length; j++) {
+    const rowIndex = indexes[j];
+    const result = json[j];
+
+    if (!result) {
+      if (canWriteError) batchResults[ERROR_KEY][rowIndex] = "No response from the Placekey API for this row.";
+      continue;
+    }
+
+    if (result.error && canWriteError) {
+      batchResults[ERROR_KEY][rowIndex] = typeof result.error === "string" ? result.error : JSON.stringify(result.error);
+    }
+
+    for (const [field, value] of Object.entries(result)) {
+      if (field === "query_id" || field === "error") continue;
+      if (field === "geocode" && value && value.location) {
+        if (batchResults.geocode_latitude) batchResults.geocode_latitude[rowIndex] = value.location.lat ?? "";
+        if (batchResults.geocode_longitude) batchResults.geocode_longitude[rowIndex] = value.location.lng ?? "";
+        if (batchResults.geocode_precision) batchResults.geocode_precision[rowIndex] = value.location_type ?? "";
+      } else if (batchResults[field] !== undefined) {
+        batchResults[field][rowIndex] = value ?? "";
+      }
+    }
+
+    const placekeyValue = result.placekey;
+    const placekeyMissing = placekeyValue == null || placekeyValue === "";
+    if (placekeyMissing && canWriteError && !batchResults[ERROR_KEY][rowIndex]) {
+      batchResults[ERROR_KEY][rowIndex] =
+        "No Placekey could be determined for this row. Check that the address fields are correct and, for non-US data, that a country column is mapped.";
+    }
+  }
+
+  return batchResults;
 }
 
 export function prepareOutputFields(fieldNames, colsHeader) {
