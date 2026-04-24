@@ -99,11 +99,15 @@ describe("isValidRow edge cases", () => {
     expect(result.isValid).toBe(true);
   });
 
-  it("valid: bad lat/long + street+city+region (country defaults to US)", () => {
+  it("invalid: bad lat/long + street+city+region but country unmapped (no silent US default)", () => {
+    // v1.1.1 removes the "iso_country_code defaults to US" behavior, so any
+    // address-based minimum-input set that requires country now fails
+    // without an explicit country mapping. Previously this row passed.
     const noCountryMappings = buildMappings(FULL_HEADERS, { iso_country_code: NO_INPUT });
     const row = ["", "123 Main", "NYC", "NY", "", "bad", "bad", "", "", "", "", "", ""];
     const result = isValidRow(row, noCountryMappings);
-    expect(result.isValid).toBe(true);
+    expect(result.isValid).toBe(false);
+    expect(result.message).toContain("minimum input");
   });
 
   it("invalid: iso_country_code only value when mapped", () => {

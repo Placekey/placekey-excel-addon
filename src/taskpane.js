@@ -3,7 +3,7 @@ import { computeAutomap } from "./logic/automap.js";
 import { buildColumnOptions, buildSheetOptions } from "./logic/html-helpers.js";
 import { hasDuplicateMappings, isValidRow } from "./logic/validation.js";
 import { EMPTY_ROW_ERROR_MESSAGE } from "./logic/constants.js";
-import { prepareOutputFields, transformColumnMappings } from "./logic/transform.js";
+import { prepareOutputFields, processBatchResponse, transformColumnMappings } from "./logic/transform.js";
 import { callPlacekeyApi } from "./logic/api-client.js";
 import { collectOverwriteHeaders, computeStatus, duplicateColumns, resolveFieldValue } from "./logic/ui-state.js";
 import {
@@ -425,24 +425,7 @@ async function handleGenerate() {
         fieldsFinalized = true;
       }
 
-      const batchResults = {};
-      for (const name of Object.keys(fields)) batchResults[name] = {};
-
-      for (let j = 0; j < indexes.length; j++) {
-        if (!json[j]) continue;
-        const rowIndex = indexes[j];
-        for (const [field, value] of Object.entries(json[j])) {
-          if (field === "query_id") continue;
-          if (field === "geocode" && value && value.location) {
-            if (batchResults.geocode_latitude) batchResults.geocode_latitude[rowIndex] = value.location.lat ?? "";
-            if (batchResults.geocode_longitude) batchResults.geocode_longitude[rowIndex] = value.location.lng ?? "";
-            if (batchResults.geocode_precision) batchResults.geocode_precision[rowIndex] = value.location_type ?? "";
-          } else if (batchResults[field] !== undefined) {
-            batchResults[field][rowIndex] = value;
-          }
-        }
-      }
-
+      const batchResults = processBatchResponse(json, indexes, fields, insertError);
       await writeResults(fields, batchResults, targetSheet, { autofit: false });
       totalPlaceKeys += indexes.length;
     }

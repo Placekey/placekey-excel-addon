@@ -4,7 +4,7 @@ export function mapRowToObject(row, columnMappings) {
   const result = {};
   for (const field of MAIN_FIELDS) {
     if (columnMappings[field] === NO_INPUT_STRING) {
-      result[field] = field === "iso_country_code" ? "US" : "";
+      result[field] = "";
     } else {
       result[field] = row[columnMappings[field].rowIndex];
     }
