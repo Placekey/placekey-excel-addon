@@ -1,11 +1,11 @@
-import { API_BATCH_SIZE, ERROR_KEY, GEOCODE_FIELDS, NO_INPUT_STRING, RATE_LIMIT_MS } from "./logic/constants.js";
+import { API_BATCH_SIZE, ERROR_KEY, GEOCODE_FIELDS, NO_INPUT_STRING } from "./logic/constants.js";
 import { computeAutomap } from "./logic/automap.js";
 import { buildColumnOptions, buildSheetOptions } from "./logic/html-helpers.js";
 import { hasDuplicateMappings, validateAllRows } from "./logic/validation.js";
 import { prepareOutputFields, transformColumnMappings } from "./logic/transform.js";
 import { callPlacekeyApi } from "./logic/api-client.js";
 import { collectOverwriteHeaders, computeStatus, duplicateColumns, resolveFieldValue } from "./logic/ui-state.js";
-import { activateSheet, getWorkbookState, insertSampleData, readDataRows, saveSheetMapping, writeHeaders, writeResults } from "./sheet-adapter.js";
+import { activateSheet, autofitResultColumns, getWorkbookState, insertSampleData, readDataRows, saveSheetMapping, writeHeaders, writeResults } from "./sheet-adapter.js";
 import { getApiKey, getLearnedAliases, getUserPrefs, saveLearnedAliases, saveUserPrefs } from "./prefs-storage.js";
 import { showConfirm } from "./logic/modal.js";
 
@@ -387,9 +387,6 @@ async function handleGenerate() {
 
     setToast(`Finished loading ${rows.length} rows. ${sortedValidIndexes.length}/${rows.length} rows are valid.`);
 
-    const results = {};
-    for (const name of Object.keys(fields)) results[name] = {};
-
     const batches = [];
     for (let i = 0; i < sortedValidIndexes.length; i += API_BATCH_SIZE) {
       const indexes = sortedValidIndexes.slice(i, i + API_BATCH_SIZE);
@@ -405,7 +402,6 @@ async function handleGenerate() {
       const processed = Math.min((i + 1) * API_BATCH_SIZE, sortedValidIndexes.length);
       setToast(`Fetching Placekeys for ${processed}/${sortedValidIndexes.length} valid rows...`);
 
-      const timeHitApi = Date.now();
       const json = await callPlacekeyApi(batchRows, apiOptions, requestFields, apiKey);
       if (!json || !json.length) continue;
 
@@ -415,12 +411,14 @@ async function handleGenerate() {
           if (fieldKey === ERROR_KEY || GEOCODE_FIELDS.includes(fieldKey)) continue;
           if (!returnedFields.includes(fieldKey)) {
             delete fields[fieldKey];
-            delete results[fieldKey];
           }
         }
         await writeHeaders(fields, targetSheet);
         fieldsFinalized = true;
       }
+
+      const batchResults = {};
+      for (const name of Object.keys(fields)) batchResults[name] = {};
 
       for (let j = 0; j < indexes.length; j++) {
         if (!json[j]) continue;
@@ -428,34 +426,33 @@ async function handleGenerate() {
         for (const [field, value] of Object.entries(json[j])) {
           if (field === "query_id") continue;
           if (field === "geocode" && value && value.location) {
-            if (results.geocode_latitude) results.geocode_latitude[rowIndex] = value.location.lat ?? "";
-            if (results.geocode_longitude) results.geocode_longitude[rowIndex] = value.location.lng ?? "";
-            if (results.geocode_precision) results.geocode_precision[rowIndex] = value.location_type ?? "";
-          } else if (results[field] !== undefined) {
-            results[field][rowIndex] = value;
+            if (batchResults.geocode_latitude) batchResults.geocode_latitude[rowIndex] = value.location.lat ?? "";
+            if (batchResults.geocode_longitude) batchResults.geocode_longitude[rowIndex] = value.location.lng ?? "";
+            if (batchResults.geocode_precision) batchResults.geocode_precision[rowIndex] = value.location_type ?? "";
+          } else if (batchResults[field] !== undefined) {
+            batchResults[field][rowIndex] = value;
           }
         }
       }
 
+      await writeResults(fields, batchResults, targetSheet, { autofit: false });
       totalPlaceKeys += indexes.length;
+    }
 
-      const elapsed = Date.now() - timeHitApi;
-      if (elapsed < RATE_LIMIT_MS && i < batches.length - 1) {
-        await new Promise((r) => setTimeout(r, RATE_LIMIT_MS - elapsed));
+    if (insertError && fields[ERROR_KEY] && sortedInvalidIndexes.length > 0) {
+      if (!fieldsFinalized) {
+        await writeHeaders({ [ERROR_KEY]: fields[ERROR_KEY] }, targetSheet);
       }
-    }
-
-    if (!fieldsFinalized && insertError && fields[ERROR_KEY]) {
-      await writeHeaders({ [ERROR_KEY]: fields[ERROR_KEY] }, targetSheet);
-    }
-
-    if (insertError && results[ERROR_KEY]) {
+      const errorResults = { [ERROR_KEY]: {} };
       for (const rowIndex of sortedInvalidIndexes) {
-        results[ERROR_KEY][rowIndex] = errorRows[rowIndex];
+        errorResults[ERROR_KEY][rowIndex] = errorRows[rowIndex];
       }
+      await writeResults({ [ERROR_KEY]: fields[ERROR_KEY] }, errorResults, targetSheet, { autofit: false });
     }
 
-    await writeResults(fields, results, targetSheet);
+    if (fieldsFinalized || (insertError && fields[ERROR_KEY] && sortedInvalidIndexes.length > 0)) {
+      await autofitResultColumns(fields, targetSheet);
+    }
 
     setToast(`Done! Generated ${totalPlaceKeys} Placekeys.`, "success");
   } catch (err) {

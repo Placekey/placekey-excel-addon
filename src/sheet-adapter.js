@@ -143,7 +143,7 @@ export async function writeHeaders(fields, target) {
   });
 }
 
-export async function writeResults(fields, results, target) {
+export async function writeResults(fields, results, target, { autofit = true } = {}) {
   return Excel.run(async (context) => {
     const sheet = await resolveSheet(context, target);
     for (const [fieldName, fieldObj] of Object.entries(fields)) {
@@ -154,6 +154,18 @@ export async function writeResults(fields, results, target) {
         sheet.getRangeByIndexes(startRowIndex + 1, fieldObj.columnIndex, values.length, 1).values = values;
       }
     }
+    if (autofit) {
+      for (const fieldObj of Object.values(fields)) {
+        sheet.getRangeByIndexes(0, fieldObj.columnIndex, 1, 1).format.autofitColumns();
+      }
+    }
+    await context.sync();
+  });
+}
+
+export async function autofitResultColumns(fields, target) {
+  return Excel.run(async (context) => {
+    const sheet = await resolveSheet(context, target);
     for (const fieldObj of Object.values(fields)) {
       sheet.getRangeByIndexes(0, fieldObj.columnIndex, 1, 1).format.autofitColumns();
     }

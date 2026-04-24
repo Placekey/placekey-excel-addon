@@ -19,7 +19,7 @@ export const API_BATCH_SIZE = 100;
 export const READ_CHUNK_ROWS = 100;
 export const API_URL = "https://api.placekey.io/v1/placekeys";
 export const MAX_RETRIES = 3;
-export const RATE_LIMIT_MS = 1100;
+export const RETRY_AFTER_DEFAULT_MS = 2000;
 
 export const LEARNED_ALIASES_KEY = "placekey.learnedAliases";
 export const USER_PREFS_KEY = "placekey.userPrefs";

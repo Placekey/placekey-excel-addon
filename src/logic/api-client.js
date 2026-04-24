@@ -1,7 +1,17 @@
-import { API_URL, MAX_RETRIES } from "./constants.js";
+import { API_URL, MAX_RETRIES, RETRY_AFTER_DEFAULT_MS } from "./constants.js";
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function retryAfterMs(res) {
+  const raw = res.headers && typeof res.headers.get === "function" ? res.headers.get("Retry-After") : null;
+  if (!raw) return RETRY_AFTER_DEFAULT_MS;
+  const asSeconds = Number(raw);
+  if (Number.isFinite(asSeconds)) return Math.max(0, asSeconds * 1000);
+  const asDate = Date.parse(raw);
+  if (!Number.isNaN(asDate)) return Math.max(0, asDate - Date.now());
+  return RETRY_AFTER_DEFAULT_MS;
 }
 
 export async function callPlacekeyApi(batch, options, requestFields, apiKey, { fetchImpl = fetch, url = API_URL, sleepImpl = sleep } = {}) {
@@ -35,17 +45,18 @@ export async function callPlacekeyApi(batch, options, requestFields, apiKey, { f
       }
     }
 
-    if (code === 429) {
-      throw new Error("Rate limit exceeded. Visit https://www.placekey.io/pricing to upgrade.");
-    }
-
     if (code === 400) {
       throw new Error("The API returned an error because at least one row in this batch is malformed.");
     }
 
-    if (code >= 500 && attempt < MAX_RETRIES) {
-      await sleepImpl(1000 * attempt);
+    if ((code === 429 || code >= 500) && attempt < MAX_RETRIES) {
+      const delay = code === 429 ? retryAfterMs(res) : 1000 * attempt;
+      await sleepImpl(delay);
       continue;
+    }
+
+    if (code === 429) {
+      throw new Error(`Rate limited by the API after ${MAX_RETRIES} retries. Wait a moment and try again, or upgrade at https://www.placekey.io/pricing.`);
     }
 
     throw new Error(`The API failed with status code ${code}.`);

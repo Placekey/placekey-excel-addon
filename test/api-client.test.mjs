@@ -1,10 +1,11 @@
 import { describe, it, expect } from "vitest";
 import { callPlacekeyApi } from "../src/logic/api-client.js";
 
-function jsonResponse(status, body) {
+function jsonResponse(status, body, headers) {
   return {
     status,
     json: async () => body,
+    headers: headers ? { get: (name) => headers[name.toLowerCase()] ?? headers[name] ?? null } : undefined,
   };
 }
 
@@ -31,9 +32,73 @@ describe("callPlacekeyApi", () => {
     expect(capturedHeaders.apikey).toBe("mykey");
   });
 
-  it("throws rate-limit error on 429", async () => {
+  it("retries on 429 and eventually succeeds", async () => {
+    let calls = 0;
+    const fetchImpl = async () => {
+      calls++;
+      if (calls < 2) return jsonResponse(429, {});
+      return jsonResponse(200, [{ placekey: "ok" }]);
+    };
+    const sleepImpl = async () => {};
+    const result = await callPlacekeyApi([], { addressMatch: false, nameMatch: false }, [], "key", { fetchImpl, sleepImpl });
+    expect(calls).toBe(2);
+    expect(result[0].placekey).toBe("ok");
+  });
+
+  it("honors Retry-After header (seconds) on 429", async () => {
+    const delays = [];
+    let calls = 0;
+    const fetchImpl = async () => {
+      calls++;
+      if (calls === 1) return jsonResponse(429, {}, { "Retry-After": "3" });
+      return jsonResponse(200, [{ placekey: "ok" }]);
+    };
+    const sleepImpl = async (ms) => {
+      delays.push(ms);
+    };
+    const result = await callPlacekeyApi([], { addressMatch: false, nameMatch: false }, [], "key", { fetchImpl, sleepImpl });
+    expect(result[0].placekey).toBe("ok");
+    expect(delays).toEqual([3000]);
+  });
+
+  it("honors Retry-After header (HTTP date) on 429", async () => {
+    const target = Date.now() + 4500;
+    const retryAfter = new Date(target).toUTCString();
+    const delays = [];
+    let calls = 0;
+    const fetchImpl = async () => {
+      calls++;
+      if (calls === 1) return jsonResponse(429, {}, { "Retry-After": retryAfter });
+      return jsonResponse(200, [{ placekey: "ok" }]);
+    };
+    const sleepImpl = async (ms) => {
+      delays.push(ms);
+    };
+    await callPlacekeyApi([], { addressMatch: false, nameMatch: false }, [], "key", { fetchImpl, sleepImpl });
+    expect(delays).toHaveLength(1);
+    expect(delays[0]).toBeGreaterThan(3000);
+    expect(delays[0]).toBeLessThanOrEqual(4500);
+  });
+
+  it("falls back to default delay on 429 when Retry-After is absent", async () => {
+    const delays = [];
+    let calls = 0;
+    const fetchImpl = async () => {
+      calls++;
+      if (calls === 1) return jsonResponse(429, {});
+      return jsonResponse(200, [{ placekey: "ok" }]);
+    };
+    const sleepImpl = async (ms) => {
+      delays.push(ms);
+    };
+    await callPlacekeyApi([], { addressMatch: false, nameMatch: false }, [], "key", { fetchImpl, sleepImpl });
+    expect(delays).toEqual([2000]);
+  });
+
+  it("throws after exhausting retries on repeated 429", async () => {
     const fetchImpl = async () => jsonResponse(429, {});
-    await expect(callPlacekeyApi([], { addressMatch: false, nameMatch: false }, [], "key", { fetchImpl })).rejects.toThrow(/Rate limit/);
+    const sleepImpl = async () => {};
+    await expect(callPlacekeyApi([], { addressMatch: false, nameMatch: false }, [], "key", { fetchImpl, sleepImpl })).rejects.toThrow(/Rate limited by the API/);
   });
 
   it("throws malformed-batch error on 400", async () => {
