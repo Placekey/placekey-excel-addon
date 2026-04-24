@@ -1,6 +1,6 @@
 {
   "name": "placekey-excel-addin",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "private": true,
   "type": "module",
   "description": "Placekey Excel Add-in (Office.js taskpane)",

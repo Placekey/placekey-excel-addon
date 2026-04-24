@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## 1.0.3 — 2026-04-24
+
 ### Changed
 
 - Removed the hard-coded 1.1 s client-side pause between Placekey API batches (`RATE_LIMIT_MS`). Generation now dispatches the next batch as soon as the previous response arrives. For a large sheet this eliminates ~1 s of forced wait per 100 rows (e.g. ~110 s saved on 10 000 valid rows).
