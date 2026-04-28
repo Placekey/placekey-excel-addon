@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## 1.1.2 — 2026-04-28
+
+### Removed
+
+- **Unused `commands.html` / `commands.js` placeholder** and the corresponding `<FunctionFile resid="Commands.Url"/>` + `<bt:Url id="Commands.Url">` entries from `manifest.xml`. `<FunctionFile>` is only required when a manifest Action uses `xsi:type="ExecuteFunction"`; our only Action is `ShowTaskpane`, so the placeholder was dead weight. Removed in preparation for Microsoft AppSource publishing — fewer surfaces for the validator to scrutinize. Vite `rollupOptions.input`, `README.md`, and `STATUS.md` were updated to match.
+- **"Source on GitHub" link** from `docs/install.html` footer. The link pointed at a 404 (`Placekey/placekey-excel-addon` is not a public repo); AppSource validators also reject support links that point to source-host URLs.
+
 ## 1.1.1 — 2026-04-24
 
 ### Fixed

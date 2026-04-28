@@ -17,7 +17,7 @@ Handoff snapshot for picking up where we left off. The original porting plan is 
 | 0 — Scaffolding       | Done           | Vite + Vitest + ESLint + Prettier + npm scripts                                                                                  |
 | 1 — Logic port        | Done           | All pure logic as ESM modules under `src/logic/`                                                                                 |
 | 2 — Office.js adapter | Done           | `src/sheet-adapter.js` — reads/writes via `context.sync()`                                                                       |
-| 3 — Taskpane UI       | Done           | `src/taskpane.html/.js/.css`, `apikey.html/.js`, `commands.html/.js`                                                             |
+| 3 — Taskpane UI       | Done           | `src/taskpane.html/.js/.css`, `apikey.html/.js`                                                                                  |
 | 4 — Generate flow     | Done           | Validate → batch → API → write; rate-limit + retry + error column                                                                |
 | 5 — Persistence       | Done           | API key + learned aliases (`OfficeRuntime.storage`) + per-sheet mapping (`workbook.settings` keyed by `worksheet.id`)            |
 | 6 — Distribution      | Done           | `publish.yml` → GitHub Pages; `release.yml` → GitHub Release with `manifest.xml` asset; `docs/install.html` served at Pages root |

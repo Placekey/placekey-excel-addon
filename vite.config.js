@@ -38,7 +38,6 @@ export default defineConfig({
     rollupOptions: {
       input: {
         taskpane: resolve(__dirname, "src/taskpane.html"),
-        commands: resolve(__dirname, "src/commands.html"),
         apikey: resolve(__dirname, "src/apikey.html"),
       },
     },

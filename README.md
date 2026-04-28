@@ -83,7 +83,6 @@ For production, `scripts/manifest-prod.js` rewrites the dev URLs to the GitHub P
 src/
   taskpane.html/.js/.css  # main sidebar UI
   apikey.html/.js         # API-key dialog (opened via Office.context.ui.displayDialogAsync)
-  commands.html/.js       # function-file stub for the ribbon command
   sheet-adapter.js        # Office.js wrapper for reading/writing the active sheet
   prefs-storage.js        # OfficeRuntime.storage wrapper
   logic/                  # pure logic (reused from Sheets version)
